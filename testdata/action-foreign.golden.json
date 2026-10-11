@@ -1,0 +1,14 @@
+{
+  "action": "restart",
+  "dryRun": false,
+  "error": {
+    "code": "foreign_confirmation",
+    "message": "foreign jobs require --yes and interactive confirmation by typing the label"
+  },
+  "id": "com.example.worker",
+  "kind": "launchd",
+  "label": "com.example.worker",
+  "ops": [],
+  "result": "refused",
+  "schemaVersion": 1
+}

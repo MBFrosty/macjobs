@@ -1,0 +1,64 @@
+{
+  "action": "edit",
+  "dryRun": true,
+  "error": null,
+  "id": "com.example.worker",
+  "kind": "launchd",
+  "label": "com.example.worker",
+  "ops": [
+    {
+      "args": [
+        "<home>/Library/LaunchAgents/com.example.worker.plist",
+        "<home>/Library/LaunchAgents/.macjobs-edit-com.example.worker-1767323045000000000.plist"
+      ],
+      "command": "copy"
+    },
+    {
+      "args": [
+        "--wait",
+        "<home>/Library/LaunchAgents/.macjobs-edit-com.example.worker-1767323045000000000.plist"
+      ],
+      "command": "example-editor"
+    },
+    {
+      "args": [
+        "-lint",
+        "<home>/Library/LaunchAgents/.macjobs-edit-com.example.worker-1767323045000000000.plist"
+      ],
+      "command": "plutil"
+    },
+    {
+      "args": [
+        "<home>/Library/LaunchAgents/.macjobs-edit-com.example.worker-1767323045000000000.plist",
+        "<home>/Library/LaunchAgents/com.example.worker.plist"
+      ],
+      "command": "atomic-replace",
+      "when": "changed and valid"
+    },
+    {
+      "args": [
+        "bootout",
+        "gui/501/com.example.worker"
+      ],
+      "command": "launchctl",
+      "when": "changed and valid and loaded"
+    },
+    {
+      "args": [
+        "bootstrap",
+        "gui/501",
+        "<home>/Library/LaunchAgents/com.example.worker.plist"
+      ],
+      "command": "launchctl",
+      "when": "changed and valid"
+    },
+    {
+      "args": [
+        "<home>/Library/LaunchAgents/.macjobs-edit-com.example.worker-1767323045000000000.plist"
+      ],
+      "command": "remove-temp"
+    }
+  ],
+  "result": "planned",
+  "schemaVersion": 1
+}

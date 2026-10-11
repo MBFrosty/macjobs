@@ -1,0 +1,10 @@
+gui/501/com.example.worker = {
+	path = /home/example/Library/LaunchAgents/com.example.worker.plist
+	type = Submitted
+	state = not running
+	runs = 1
+	last exit code = 0
+	environment = {
+		EXAMPLE_VALUE => [REDACTED]
+	}
+}

@@ -1,0 +1,27 @@
+{
+  "action": "enable",
+  "dryRun": true,
+  "error": null,
+  "id": "com.example.worker",
+  "kind": "launchd",
+  "label": "com.example.worker",
+  "ops": [
+    {
+      "args": [
+        "enable",
+        "gui/501/com.example.worker"
+      ],
+      "command": "launchctl"
+    },
+    {
+      "args": [
+        "bootstrap",
+        "gui/501",
+        "<home>/Library/LaunchAgents/com.example.worker.plist"
+      ],
+      "command": "launchctl"
+    }
+  ],
+  "result": "planned",
+  "schemaVersion": 1
+}

@@ -1,0 +1,14 @@
+{
+  "action": "restart",
+  "dryRun": false,
+  "error": {
+    "code": "not_found",
+    "message": "job ID not found; use list to find its exact ID"
+  },
+  "id": "missing",
+  "kind": "",
+  "label": "",
+  "ops": [],
+  "result": "refused",
+  "schemaVersion": 1
+}

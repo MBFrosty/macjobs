@@ -1,0 +1,14 @@
+{
+  "action": "restart",
+  "dryRun": false,
+  "error": {
+    "code": "invalid_arguments",
+    "message": "exactly one job ID is required"
+  },
+  "id": "",
+  "kind": "",
+  "label": "",
+  "ops": [],
+  "result": "refused",
+  "schemaVersion": 1
+}

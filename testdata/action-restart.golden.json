@@ -1,0 +1,20 @@
+{
+  "action": "restart",
+  "dryRun": true,
+  "error": null,
+  "id": "com.example.worker",
+  "kind": "launchd",
+  "label": "com.example.worker",
+  "ops": [
+    {
+      "args": [
+        "kickstart",
+        "-k",
+        "gui/501/com.example.worker"
+      ],
+      "command": "launchctl"
+    }
+  ],
+  "result": "planned",
+  "schemaVersion": 1
+}

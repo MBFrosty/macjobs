@@ -1,0 +1,2 @@
+ 1234 /usr/bin/example
+ 2345 /Applications/Example App.app/Contents/MacOS/Example App

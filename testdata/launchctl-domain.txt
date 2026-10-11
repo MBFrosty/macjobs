@@ -1,0 +1,8 @@
+domain = {
+	services = {
+		0 0 com.example.job0
+		1234 - com.example.job1
+		1234 (pe) com.example.job2
+		1234 (jt) com.example.job3
+	}
+}

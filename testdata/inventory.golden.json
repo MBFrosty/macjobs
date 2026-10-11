@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "com.example.orphan",
+      "kind": "launchd",
+      "label": "com.example.orphan",
+      "owner": "unknown",
+      "managed": false,
+      "created_by_tool": false,
+      "state": "absent",
+      "health": "fail",
+      "notes": [
+        "registry entry has no live job"
+      ],
+      "readOnly": true
+    },
+    {
+      "id": "com.example.worker",
+      "kind": "launchd",
+      "label": "com.example.worker",
+      "domain": "gui/501",
+      "owner": "team",
+      "purpose": "Example worker",
+      "managed": false,
+      "created_by_tool": false,
+      "state": "running",
+      "pid": 1234,
+      "schedule": "keep alive",
+      "lastRun": "2026-01-01T00:00:00Z",
+      "runs": 1,
+      "health": "warn",
+      "notes": [
+        "multiple jobs expect 8080: com.example.worker, example-process"
+      ],
+      "plistPath": "/example/com.example.worker.plist",
+      "logs": [
+        "/example/example.log"
+      ],
+      "port": 8080,
+      "ports": [
+        {
+          "proto": "tcp",
+          "port": 8080,
+          "host": "127.0.0.1",
+          "pid": 1234,
+          "source": "declared",
+          "listening": true
+        },
+        {
+          "proto": "tcp",
+          "port": 8080,
+          "host": "127.0.0.1",
+          "pid": 1234,
+          "source": "observed",
+          "listening": true
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "id": "example-process",
+      "kind": "process",
+      "label": "example-process",
+      "owner": "team",
+      "managed": false,
+      "created_by_tool": false,
+      "state": "running",
+      "pid": 1234,
+      "health": "warn",
+      "notes": [
+        "multiple jobs expect 8080: com.example.worker, example-process"
+      ],
+      "port": 8080,
+      "ports": [
+        {
+          "proto": "tcp",
+          "port": 8080,
+          "host": "127.0.0.1",
+          "pid": 1234,
+          "source": "declared",
+          "listening": true
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "id": "homebrew.mxcl.example-service-0",
+      "kind": "brew",
+      "label": "homebrew.mxcl.example-service-0",
+      "owner": "homebrew",
+      "managed": false,
+      "created_by_tool": false,
+      "state": "none",
+      "health": "ok",
+      "notes": [],
+      "readOnly": true
+    },
+    {
+      "id": "homebrew.mxcl.example-service-1",
+      "kind": "brew",
+      "label": "homebrew.mxcl.example-service-1",
+      "owner": "homebrew",
+      "managed": false,
+      "created_by_tool": false,
+      "state": "none",
+      "health": "ok",
+      "notes": [],
+      "readOnly": true
+    },
+    {
+      "id": "tailscale:example-host.example.test:443/",
+      "kind": "tailscale",
+      "owner": "unknown",
+      "managed": false,
+      "created_by_tool": false,
+      "state": "configured",
+      "health": "ok",
+      "notes": [],
+      "port": 8080,
+      "ports": [
+        {
+          "proto": "tcp",
+          "port": 8080,
+          "host": "127.0.0.1",
+          "pid": 1234,
+          "source": "tailscale",
+          "listening": true
+        },
+        {
+          "proto": "tcp",
+          "port": 443,
+          "source": "tailscale",
+          "listening": false
+        }
+      ],
+      "target": "http://127.0.0.1:8080",
+      "readOnly": true
+    },
+    {
+      "id": "tailscale:example-host.example.test:8443/hook",
+      "kind": "tailscale",
+      "owner": "unknown",
+      "managed": false,
+      "created_by_tool": false,
+      "state": "configured",
+      "health": "fail",
+      "notes": [
+        "serve route points to a dead local port"
+      ],
+      "port": 8081,
+      "ports": [
+        {
+          "proto": "tcp",
+          "port": 8081,
+          "source": "tailscale",
+          "listening": false
+        },
+        {
+          "proto": "tcp",
+          "port": 8443,
+          "source": "tailscale",
+          "listening": false
+        }
+      ],
+      "target": "http://127.0.0.1:8081",
+      "funnel": true,
+      "readOnly": true
+    }
+  ],
+  "warnings": []
+}

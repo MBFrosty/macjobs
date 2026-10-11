@@ -1,0 +1,33 @@
+{
+  "action": "remove",
+  "dryRun": true,
+  "error": null,
+  "id": "com.example.worker",
+  "kind": "launchd",
+  "label": "com.example.worker",
+  "ops": [
+    {
+      "args": [
+        "bootout",
+        "gui/501/com.example.worker"
+      ],
+      "command": "launchctl"
+    },
+    {
+      "args": [
+        "0700",
+        "<home>/.config/macjobs/trash"
+      ],
+      "command": "mkdir"
+    },
+    {
+      "args": [
+        "<home>/Library/LaunchAgents/com.example.worker.plist",
+        "<home>/.config/macjobs/trash/com.example.worker-20260102T030405.000000000Z.plist"
+      ],
+      "command": "move"
+    }
+  ],
+  "result": "planned",
+  "schemaVersion": 1
+}

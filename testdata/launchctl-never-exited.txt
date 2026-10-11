@@ -1,0 +1,6 @@
+gui/501/com.example.worker = {
+	path = /home/example/Library/LaunchAgents/com.example.worker.plist
+	type = LaunchAgent
+	state = not running
+	runs = 16
+}

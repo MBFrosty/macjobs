@@ -1,0 +1,7 @@
+/macjobs
+/mj
+/.scratch/
+*.test
+*.out
+.DS_Store
+dist/

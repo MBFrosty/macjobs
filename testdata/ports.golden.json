@@ -1,0 +1,25 @@
+{
+  "listeners": [
+    {
+      "command": "example",
+      "expectedBy": [
+        "com.example.web"
+      ],
+      "host": "127.0.0.1",
+      "jobId": "com.example.web",
+      "pid": 1234,
+      "port": 8080,
+      "proto": "tcp"
+    },
+    {
+      "command": "mdns",
+      "expectedBy": [],
+      "host": "*",
+      "pid": 9,
+      "port": 5353,
+      "proto": "udp"
+    }
+  ],
+  "schemaVersion": 1,
+  "warnings": []
+}

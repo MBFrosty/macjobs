@@ -1,0 +1,29 @@
+{
+  "TCP": {
+    "443": {
+      "HTTPS": true
+    },
+    "8443": {
+      "HTTPS": true
+    }
+  },
+  "Web": {
+    "example-host.example.test:443": {
+      "Handlers": {
+        "/": {
+          "Proxy": "http://127.0.0.1:8080"
+        }
+      }
+    },
+    "example-host.example.test:8443": {
+      "Handlers": {
+        "/hook": {
+          "Proxy": "http://127.0.0.1:8081"
+        }
+      }
+    }
+  },
+  "AllowFunnel": {
+    "example-host.example.test:8443": true
+  }
+}

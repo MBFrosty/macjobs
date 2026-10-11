@@ -1,0 +1,14 @@
+{
+  "action": "restart",
+  "dryRun": false,
+  "error": {
+    "code": "tty_required",
+    "message": "foreign jobs require a TTY even with --yes; no action was taken"
+  },
+  "id": "com.example.worker",
+  "kind": "launchd",
+  "label": "com.example.worker",
+  "ops": [],
+  "result": "refused",
+  "schemaVersion": 1
+}

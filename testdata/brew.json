@@ -1,0 +1,16 @@
+[
+  {
+    "name": "example-service-0",
+    "status": "none",
+    "user": null,
+    "file": null,
+    "exit_code": null
+  },
+  {
+    "name": "example-service-1",
+    "status": "none",
+    "user": null,
+    "file": null,
+    "exit_code": null
+  }
+]

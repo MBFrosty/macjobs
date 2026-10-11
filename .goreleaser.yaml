@@ -1,0 +1,75 @@
+version: 2
+project_name: macjobs
+
+builds:
+  - id: macjobs
+    main: ./cmd/macjobs
+    binary: macjobs
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - arm64
+      - amd64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.CommitDate}}
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: MBFrosty
+    name: macjobs
+  draft: false
+  prerelease: auto
+
+homebrew_casks:
+  - name: macjobs
+    binaries:
+      - macjobs
+    repository:
+      owner: MBFrosty
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/MBFrosty/macjobs
+    description: Bot- and agent-first job manager for macOS — one inventory across launchd, Homebrew services, Tailscale Serve/Funnel, and processes.
+    license: MIT
+    skip_upload: auto
+    commit_msg_template: "macjobs {{ .Tag }}"
+    # Quarantine strip (Gatekeeper helper): OFF by default until maintainers choose.
+    # To enable, uncomment the hooks block below and add this line to caveats:
+    #   Release binaries are not notarized; this cask clears quarantine on install. See RELEASING.md.
+    # hooks:
+    #   post:
+    #     install: |
+    #       if OS.mac?
+    #         system "/usr/bin/xattr", "-dr", "com.apple.quarantine", "#{staged_path}/macjobs"
+    #       end
+    caveats: |
+      Optional shell alias: alias mj=macjobs
+
+      Release binaries are not notarized. Verify downloads with checksums.txt from the GitHub release.
