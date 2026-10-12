@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest an improvement or new capability
+title: "[Feature]: "
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe what you would like macjobs to do. Security-sensitive topics belong in **Security → Report a vulnerability**.
+  - type: input
+    id: macjobs_version
+    attributes:
+      label: macjobs version
+      description: Output of `macjobs --version` (or the version you are evaluating)
+      placeholder: e.g. 0.1.1
+    validations:
+      required: true
+  - type: input
+    id: macos_version
+    attributes:
+      label: macOS version
+      description: From **About This Mac** or `sw_vers -productVersion`
+      placeholder: e.g. 15.0
+    validations:
+      required: true
+  - type: textarea
+    id: what_you_want
+    attributes:
+      label: What would you like?
+      description: The problem you are solving and the behavior you want
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other tools or workarounds you tried
+    validations:
+      required: false
