@@ -15,6 +15,12 @@ concurrency:
 jobs:
   release:
     runs-on: macos-latest
+    env:
+      MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+      MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+      MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+      MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+      MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -33,3 +39,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Verify Developer ID signature and notarization
+        if: env.MACOS_SIGN_P12 != ''
+        run: |
+          set -euo pipefail
+          for bin in $(find dist -type f -path '*darwin*' -name macjobs); do
+            echo "== $bin"
+            codesign --verify --strict --verbose=2 "$bin"
+            codesign --verify --test-requirement="=notarized" --verbose=2 "$bin"
+            codesign -dv "$bin" 2>&1 | grep -E '^(Authority=Developer ID Application|TeamIdentifier=|Runtime Version|flags=)'
+          done

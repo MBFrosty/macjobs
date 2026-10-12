@@ -21,6 +21,23 @@ builds:
       - -X main.commit={{.Commit}}
       - -X main.date={{.CommitDate}}
 
+notarize:
+  macos:
+    - # Runs only when all five signing/notary secrets are present (tag releases).
+      # PR CI and local snapshots have none of them, so this pipe is skipped there.
+      enabled: '{{ and (isEnvSet "MACOS_SIGN_P12") (isEnvSet "MACOS_SIGN_PASSWORD") (isEnvSet "MACOS_NOTARY_KEY") (isEnvSet "MACOS_NOTARY_KEY_ID") (isEnvSet "MACOS_NOTARY_ISSUER_ID") }}'
+      ids:
+        - macjobs
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        wait: true
+        timeout: 20m
+
 archives:
   - formats:
       - tar.gz
@@ -55,6 +72,9 @@ homebrew_casks:
       owner: MBFrosty
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: MBFrosty
+      email: 32286306+MBFrosty@users.noreply.github.com
     homepage: https://github.com/MBFrosty/macjobs
     description: Bot- and agent-first job manager for macOS — one inventory across launchd, Homebrew services, Tailscale Serve/Funnel, and processes.
     license: MIT
