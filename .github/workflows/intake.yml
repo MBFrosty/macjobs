@@ -1,0 +1,319 @@
+name: Issue intake
+
+on:
+  issues:
+    types: [opened, labeled]
+  push:
+    branches: [main]
+    paths:
+      - .github/labels.yml
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  sync-labels:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/github-script@60a0d82939e7a691ee10850586e894e93a0897d85 # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const yaml = fs.readFileSync('.github/labels.yml', 'utf8');
+            const specs = [];
+            for (const block of yaml.split(/^- name:/m).slice(1)) {
+              const lines = block.split('\n');
+              const name = lines[0].trim();
+              const color = (block.match(/^\s*color:\s*([a-f0-9]+)/m) || [])[1] || 'ededed';
+              const description = (block.match(/^\s*description:\s*(.+)$/m) || [])[1] || '';
+              specs.push({ name, color, description });
+            }
+            const { owner, repo } = context.repo;
+            const existing = await github.paginate(github.rest.issues.listLabelsForRepo, {
+              owner,
+              repo,
+              per_page: 100,
+            });
+            const byName = new Map(existing.map((l) => [l.name, l]));
+            for (const spec of specs) {
+              const cur = byName.get(spec.name);
+              if (!cur) {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name: spec.name,
+                  color: spec.color,
+                  description: spec.description,
+                });
+                continue;
+              }
+              if (cur.color !== spec.color || (cur.description || '') !== spec.description) {
+                await github.rest.issues.updateLabel({
+                  owner,
+                  repo,
+                  name: spec.name,
+                  color: spec.color,
+                  description: spec.description,
+                });
+              }
+            }
+
+  opened:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/github-script@60a0d82939e7a691ee10850586e894e93a0897d85 # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const issue = context.payload.issue;
+            const number = issue.number;
+
+            const labelYaml = fs.readFileSync('.github/labels.yml', 'utf8');
+            for (const block of labelYaml.split(/^- name:/m).slice(1)) {
+              const name = block.split('\n')[0].trim();
+              const color = (block.match(/^\s*color:\s*([a-f0-9]+)/m) || [])[1] || 'ededed';
+              const description = (block.match(/^\s*description:\s*(.+)$/m) || [])[1] || '';
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner,
+                    repo,
+                    name,
+                    color,
+                    description,
+                  });
+                } else {
+                  throw e;
+                }
+              }
+            }
+
+            const labels = (issue.labels || []).map((l) => (typeof l === 'string' ? l : l.name));
+            if (labels.includes('bot:ack')) {
+              core.info('Already acknowledged; skipping.');
+              return;
+            }
+
+            const body = issue.body || '';
+            const title = issue.title || '';
+
+            const stripTemplate = (text) =>
+              text
+                .replace(/<!--[\s\S]*?-->/g, '')
+                .replace(/^#{1,6}\s+.+$/gm, '')
+                .replace(/^\s*[-*]\s*\[[ xX]\]\s*.+$/gm, '')
+                .replace(/\*\*/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            const sectionValue = (text, heading) => {
+              const re = new RegExp(`### ${heading}[\\s\\S]*?\\n+([^\\n#]+)`, 'i');
+              const m = text.match(re);
+              return Boolean(m && m[1].trim().length > 0);
+            };
+
+            const meaningful = stripTemplate(body);
+            const hasVersion = sectionValue(body, 'macjobs version');
+            const hasMacOS = sectionValue(body, 'macOS version');
+            const hasNarrative =
+              sectionValue(body, 'What happened?') ||
+              sectionValue(body, 'What would you like?') ||
+              meaningful.length >= 80;
+
+            const links = body.match(/https?:\/\/[^\s)>"]+/gi) || [];
+            const externalLinks = links.filter(
+              (u) => !/github\.com|githubusercontent\.com/i.test(u),
+            );
+
+            const assoc = issue.author_association || 'NONE';
+            const isFirstTimer = ['NONE', 'FIRST_TIMER', 'FIRST_TIME_CONTRIBUTOR'].includes(assoc);
+
+            const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            const authorLogin = issue.user.login;
+            const authorSearch = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${owner}/${repo} author:${authorLogin} created:>=${since}`,
+              per_page: 1,
+            });
+            const repoSearch = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${owner}/${repo} created:>=${since}`,
+              per_page: 1,
+            });
+            const authorCount = authorSearch.data.total_count;
+            const repoCount = repoSearch.data.total_count;
+            const rateLimited = authorCount > 2 || repoCount > 10;
+
+            const spamScore =
+              (externalLinks.length > 5 ? 2 : 0) +
+              (links.length > 12 ? 2 : 0) +
+              (/(\bcrypto\b|\bcasino\b|\bviagra\b)/i.test(title + body) ? 2 : 0) +
+              (/(.)\1{15,}/.test(body) ? 1 : 0);
+            const isSpam = spamScore >= 2;
+
+            const incomplete =
+              meaningful.length < 80 || !hasVersion || !hasMacOS || !hasNarrative;
+
+            const ack = [
+              '🤖 **Automated message from the macjobs intake bot**',
+              '',
+              'Thanks for opening this issue. This is an automatic acknowledgement, not a human reply.',
+              '',
+              "- It has been labeled `needs-triage` and added to the maintainer's queue.",
+              '- A maintainer reviews new issues, usually within a few days. Updates will appear here.',
+              "- If this is a security problem, please don't discuss it publicly; use **Security → Report a vulnerability** instead.",
+              '',
+              'To help us move faster, make sure the issue includes your `macjobs --version`, macOS version, and the output of `macjobs doctor --json` (it is redacted by default, but please double-check it for anything private).',
+            ].join('\n');
+
+            const incompleteNote = [
+              '🤖 **Automated message from the macjobs intake bot**',
+              '',
+              'Thanks for opening this issue. It looks incomplete — please add your `macjobs --version`, macOS version, and enough detail for us to understand the problem or request (see the issue form). A maintainer will take a look once there is enough information.',
+            ].join('\n');
+
+            const spamNote = [
+              '🤖 **Automated message from the macjobs intake bot**',
+              '',
+              'Thanks for opening this issue. Automated checks flagged it as possible spam. A maintainer will review it manually; if this was a mistake, reply with more detail about your macjobs setup.',
+            ].join('\n');
+
+            const rateNote = [
+              '🤖 **Automated message from the macjobs intake bot**',
+              '',
+              'Thanks for opening this issue. This repository is receiving a high volume of new issues right now, so automatic triage is paused for this item. A maintainer will review it when volume allows.',
+            ].join('\n');
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: number,
+              labels: ['needs-triage', 'bot:ack'],
+            });
+
+            let comment = ack;
+            const gateLabels = [];
+
+            if (rateLimited) {
+              gateLabels.push('rate-limited');
+              comment = rateNote;
+            } else if (isSpam) {
+              gateLabels.push('possible-spam');
+              comment = spamNote;
+            } else if (incomplete) {
+              gateLabels.push('incomplete');
+              comment = incompleteNote;
+            }
+
+            if (gateLabels.length) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: number,
+                labels: gateLabels,
+              });
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: comment,
+            });
+
+            let assign = !rateLimited && !isSpam && !incomplete;
+            if (assign && isFirstTimer) {
+              if (externalLinks.length > 0 || links.length > 2) {
+                assign = false;
+              }
+            }
+
+            if (assign) {
+              await github.rest.issues.addAssignees({
+                owner,
+                repo,
+                issue_number: number,
+                assignees: ['MBFrosty'],
+              });
+            }
+
+            if (!rateLimited && !isSpam && !incomplete) {
+              const titleWords = title
+                .replace(/^\[[^\]]+\]:\s*/i, '')
+                .split(/\s+/)
+                .filter((w) => w.length > 2)
+                .slice(0, 5)
+                .join(' ');
+              if (titleWords.length > 0) {
+                const related = await github.rest.search.issuesAndPullRequests({
+                  q: `repo:${owner}/${repo} is:issue ${titleWords}`,
+                  per_page: 5,
+                });
+                const others = related.data.items.filter((i) => i.number !== number);
+                if (others.length > 0) {
+                  await github.rest.issues.addLabels({
+                    owner,
+                    repo,
+                    issue_number: number,
+                    labels: ['possible-duplicate'],
+                  });
+                }
+              }
+            }
+
+  duplicate-comment:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'duplicate'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@60a0d82939e7a691ee10850586e894e93a0897d85 # v7.0.1
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue = context.payload.issue;
+            const number = issue.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: number,
+              per_page: 100,
+            });
+            const already = comments.some(
+              (c) =>
+                c.user &&
+                c.user.type === 'Bot' &&
+                c.body &&
+                c.body.includes('looks like a duplicate'),
+            );
+            if (already) {
+              core.info('Duplicate comment already posted.');
+              return;
+            }
+
+            const labels = (issue.labels || []).map((l) => (typeof l === 'string' ? l : l.name));
+            const dupOf = labels.find((l) => /^dup-of-\d+$/.test(l));
+            let body;
+            if (dupOf) {
+              const target = dupOf.replace(/^dup-of-/, '');
+              body = `🤖 Automated: this looks like a duplicate of #${target}, so it's been labeled \`duplicate\` and closed to keep discussion in one place. If you think that's wrong, reply here and a maintainer will take another look.`;
+            } else {
+              body =
+                "🤖 Automated: this looks like a duplicate of an issue that is already tracked, so it's been labeled `duplicate` and closed to keep discussion in one place. If you think that's wrong, reply here and a maintainer will take another look.";
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body,
+            });

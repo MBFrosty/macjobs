@@ -1,0 +1,28 @@
+# Repository labels for issue intake (synced by .github/workflows/intake.yml).
+- name: needs-triage
+  color: cfd3d7
+  description: Awaiting maintainer review
+- name: bot:ack
+  color: 0e8a16
+  description: Intake bot posted an acknowledgement
+- name: incomplete
+  color: d876e3
+  description: Missing required details from the issue form
+- name: possible-spam
+  color: d93f0b
+  description: Flagged by automated spam heuristics
+- name: rate-limited
+  color: fbca04
+  description: Author or repo issue rate limit reached
+- name: duplicate
+  color: 585858
+  description: Duplicate of another issue
+- name: possible-duplicate
+  color: bfdadc
+  description: May overlap with an existing issue
+- name: bug
+  color: d73a4a
+  description: Something is not working
+- name: enhancement
+  color: a2eeef
+  description: New feature or improvement

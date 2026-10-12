@@ -1,0 +1,48 @@
+name: Bug report
+description: Report something that is not working with macjobs
+title: "[Bug]: "
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Security-sensitive problems belong in **Security → Report a vulnerability**, not here.
+  - type: input
+    id: macjobs_version
+    attributes:
+      label: macjobs version
+      description: Output of `macjobs --version`
+      placeholder: e.g. 0.1.1
+    validations:
+      required: true
+  - type: input
+    id: macos_version
+    attributes:
+      label: macOS version
+      description: From **About This Mac** or `sw_vers -productVersion`
+      placeholder: e.g. 15.0
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you see instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Commands you ran, job labels involved, or other context
+    validations:
+      required: false
+  - type: textarea
+    id: doctor
+    attributes:
+      label: macjobs doctor output (optional)
+      description: Paste `macjobs doctor --json` if you can (redacted by default; double-check for private data)
+    validations:
+      required: false
