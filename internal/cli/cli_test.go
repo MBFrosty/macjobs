@@ -202,3 +202,13 @@ func TestFollowKeepsPartialCredentialsTogether(t *testing.T) {
 		t.Fatal("partial credential exposed")
 	}
 }
+
+func TestListRejectsUnknownKind(t *testing.T) {
+	_, e := commands(t, "list", "--kind", "bogus")
+	if e == nil || !strings.Contains(e.Error(), "launchd, system, brew, tailscale, process") {
+		t.Fatal("unknown kind accepted or error lacks valid kinds:", e)
+	}
+	if _, e := commands(t, "list", "--kind", "launchd"); e != nil {
+		t.Fatal(e)
+	}
+}

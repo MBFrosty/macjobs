@@ -65,6 +65,9 @@ func NewWithServices(version string, collect Collect, factory ActionFactory, wat
 		if e := validatePorts(ports); e != nil {
 			return e
 		}
+		if e := validateKind(kind); e != nil {
+			return e
+		}
 		result, e := snapshot(cmd)
 		if e != nil {
 			return e
@@ -339,4 +342,19 @@ func Table(w io.Writer, r model.Report, red redact.Redactor) error {
 		}
 	}
 	return nil
+}
+
+// ValidKinds are the values accepted by list --kind.
+var ValidKinds = []string{"launchd", "system", "brew", "tailscale", "process"}
+
+func validateKind(kind string) error {
+	if kind == "" {
+		return nil
+	}
+	for _, k := range ValidKinds {
+		if kind == k {
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown --kind %q; valid kinds: %s", kind, strings.Join(ValidKinds, ", "))
 }

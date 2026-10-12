@@ -11,7 +11,7 @@
 Install with Homebrew (tap must exist before the first public release):
 
 ```sh
-brew install MBFrosty/tap/macjobs
+brew install --cask MBFrosty/tap/macjobs
 macjobs --version
 ```
 
@@ -113,7 +113,7 @@ macjobs registry init
 
 `show` displays live state and the decoded plist as indented JSON. Environment values are always redacted. The old `--show-env` flag is accepted for compatibility but no longer reveals values. Authentication fields and recognized credentials stay redacted. `logs` reads the configured stdout/stderr files or registry log, keeps the last `-n` lines per file, and can follow appends, truncation, and rotation. Output is credential-redacted, including known job environment values. Large tails or lines above 4 MiB are refused. Missing logs return an error. Treat diagnostic output as private even after redaction.
 
-`doctor` only reports. It exits 1 if any item fails, and 0 if there are no failures (warnings and unknown observations remain visible). Findings cover stopped KeepAlive jobs, possible crash loops, unsuccessful last termination, missing plists, registry orphans, stale scheduled logs, registered or local route target ports that are not listening, overlapping expected ports, and ports held by another job or an unattributed process. Crash-loop detection is a heuristic: at least five runs, no running PID, and an unsuccessful last termination. It does not measure recent restart frequency. A historical nonzero exit or signal remains a finding even after a job has restarted. A missing declared port is `fail` only for a KeepAlive or running job when listeners are visible; system jobs, socket-activated plists, and Tailscale front ports never fail for an invisible listener.
+`doctor` only reports. It exits 1 when it has findings (any item fails), and 0 if there are no failures (warnings and unknown observations remain visible). Findings cover stopped KeepAlive jobs, possible crash loops, unsuccessful last termination, missing plists, registry orphans, stale scheduled logs, registered or local route target ports that are not listening, overlapping expected ports, and ports held by another job or an unattributed process. Crash-loop detection is a heuristic: at least five runs, no running PID, and an unsuccessful last termination. It does not measure recent restart frequency. A historical nonzero exit or signal remains a finding even after a job has restarted. A missing declared port is `fail` only for a KeepAlive or running job when listeners are visible; system jobs, socket-activated plists, and Tailscale front ports never fail for an invisible listener.
 
 Last-run time is inferred from the latest log modification time, not supplied by launchd. Interval log staleness means older than twice the configured interval. Calendar log checks use a conservative nominal cadence (hourly, daily, weekly, monthly, or yearly), taking the longest cadence for multiple entries. Log activity can differ from actual successful runs. Reading failures are reported as unknown; unavailable collectors and parsing drift produce warnings. Dynamically submitted jobs can legitimately have no plist. Some protected metadata may be unavailable without additional permissions; macjobs never requests sudo.
 
@@ -193,7 +193,7 @@ A non-root `lsof` on macOS sees only the current user's processes. Root-owned li
 
 ## JSON contract
 
-`list --json` and `doctor --json` return `{ "schemaVersion": 1, "items": [], "warnings": [] }`. `ports --json` returns `{ "schemaVersion": 1, "listeners": [], "warnings": [] }`. `show` returns `{ "schemaVersion": 1, "item": {}, "plist": {}, "warnings": [] }`; `plist` is an empty object when unavailable. `registry init --json` returns the registry document. `logs --json` emits newline-delimited JSON records with `schemaVersion`, `id`, `path`, and `line`, one record per log line. Follow mode keeps the same record shape.
+`list --json` and `doctor --json` return `{ "schemaVersion": 1, "items": [], "warnings": [] }`. `ports --json` returns `{ "schemaVersion": 1, "listeners": [], "warnings": [] }`. `show` returns `{ "schemaVersion": 1, "item": {}, "plist": {}, "warnings": [] }`; `plist` is an empty object when unavailable. `registry init --json` returns the registry document. `logs --json` emits newline-delimited JSON records with `schemaVersion`, `id`, `path`, and `line`, one record per log line (NDJSON, not a single JSON document). Follow mode keeps the same record shape.
 
 Item fields include `id`, `kind`, `owner`, `state`, `health`, `notes`, `managed`, `created_by_tool`, and `readOnly`. Optional observations include `tags` (omitted when empty), `label`, `domain`, `purpose`, `pid`, `schedule`, `lastRun` (UTC RFC 3339), `lastExit`, `signal`, `runs`, `plistPath`, `logs`, `port`, `ports`, `target`, `funnel`, and `disabled`. `port` is unchanged. Additive `ports` entries are `{proto, port, host?, pid?, source, listening, via?}` with `source` one of `declared`, `socket`, `inferred`, `tailscale`, or `observed`. Listener objects add `command`, `jobId`, and `expectedBy`. Missing `lastExit` means unknown or never exited; zero means an observed successful exit. Missing `lastRun` means no readable log timestamp. Health is `ok`, `warn`, `fail`, or `unknown`. Consumers should tolerate additional fields and unknown states. Collector warnings must be checked before interpreting an empty inventory as complete. schemaVersion stays 1.
 
@@ -300,6 +300,8 @@ Each normal check exits zero and appends exactly one local RFC 3339 timestamped 
 `--json` remains schemaVersion 1 and adds `probe` plus a `probes` array of `{probe, connected, reason}` results. Source log contents, endpoint responses, peer addresses, paths, and subprocess errors are never included in probe diagnostics. Checks with unavailable liveness report configured probes as `unknown` without querying them.
 
 ## Trash and restore
+
+A `--dry-run` of `stop`, `restart`, `disable`, `edit` or `remove` on a foreign job adds a `note` (text and JSON) that the real run needs `--yes` plus typed confirmation. `list --kind` accepts only `launchd`, `system`, `brew`, `tailscale`, `process`; anything else exits 1.
 
 `remove` boots out a loaded job, moves its plist into `~/.config/macjobs/trash/<label>-<UTC timestamp>.plist`, and drops its registry entry. It never deletes the plist. `--purge-log` optionally deletes the unshared, absolute registry log of a tool-created job; foreign provenance, shared registry logs, and non-regular files are refused. Watchdog state is retained separately for rate limiting; remove its state and lock files explicitly when retiring a watchdog. Recovery files are not overwritten on a timestamp collision. If a later step fails, operations can be partially completed; inspect the JSON error and trash directory before retrying.
 

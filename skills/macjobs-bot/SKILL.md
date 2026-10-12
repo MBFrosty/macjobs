@@ -13,7 +13,7 @@ macjobs is a macOS CLI that inventories launchd user agents, system daemons (rea
 macjobs --version
 ```
 
-If missing, ask the human to install from the README: `brew install MBFrosty/tap/macjobs`, `go install github.com/MBFrosty/macjobs/cmd/macjobs@latest`, or a built binary on `PATH`. Do not install or overwrite binaries unless the human explicitly asks.
+If missing, ask the human to install from the README: `brew install --cask MBFrosty/tap/macjobs`, `go install github.com/MBFrosty/macjobs/cmd/macjobs@latest`, or a built binary on `PATH`. Do not install or overwrite binaries unless the human explicitly asks.
 
 Optional `mj` is a shell alias (`alias mj=macjobs` in `~/.zshrc`) or a symlink to the same executable, not a CLI alias.
 
@@ -53,6 +53,8 @@ macjobs doctor --json
 **show** returns live state and a redacted plist. `--show-env` is deprecated and never reveals values.
 
 **logs** uses `-n/--lines` (default 50) and `-f/--follow`.
+
+- `doctor` exits 1 when it has findings (any `fail` item), 0 otherwise. `logs --json` is NDJSON: one object per line, not one document. `list --kind` only accepts launchd/system/brew/tailscale/process and exits 1 otherwise. A foreign-job `--dry-run` of stop/restart/disable/edit/remove includes a `note` that the real run needs `--yes` plus typed TTY confirmation.
 
 **doctor** reports only; it never fixes. It exits 1 when any item has `fail` health, 0 otherwise (warnings and unknown still print).
 

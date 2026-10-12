@@ -11,6 +11,8 @@ Portable operator guidance for assistants lives in `skills/macjobs-bot/SKILL.md`
 
 ## Ground rules
 
+- Install: `brew install --cask MBFrosty/tap/macjobs` (signed and notarized).
+- `doctor` exits 1 when it has findings (any `fail` item), 0 otherwise. `logs --json` is NDJSON: one object per line, not one document. `list --kind` only accepts launchd/system/brew/tailscale/process and exits 1 otherwise. A foreign-job `--dry-run` of stop/restart/disable/edit/remove includes a `note` that the real run needs `--yes` plus typed TTY confirmation.
 - Read-only first: `list`, `show`, `logs`, `ports`, and `doctor` are safe inspection commands. `doctor` reports and never fixes.
 - Before `create`, `edit`, `enable`, `disable`, `start`, `stop`, `restart`, `remove`, `adopt`, `tag`, or `untag`, run with `--dry-run`, show the plan, and obtain approval for the real operation. Never remove without explicit confirmation. Existing explicit approval for the same operation remains valid.
 - Foreign jobs require `--yes` and a typed TTY label confirmation for stop, restart, disable, edit, and remove. Never bypass this; ask the user to perform the confirmation. Start and enable do not have that tool gate, but still need the preview/approval workflow.

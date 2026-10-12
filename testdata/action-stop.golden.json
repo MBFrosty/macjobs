@@ -5,6 +5,7 @@
   "id": "com.example.worker",
   "kind": "launchd",
   "label": "com.example.worker",
+  "note": "foreign job: a real run requires --yes plus typed confirmation of the label on a TTY",
   "ops": [
     {
       "args": [

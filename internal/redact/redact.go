@@ -19,6 +19,44 @@ var opaque = regexp.MustCompile(`\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z
 
 func Sensitive(key string) bool { return sensitive.MatchString(key) }
 
+// envSensitive matches environment variable names whose values are treated as
+// secrets and scrubbed from all output (logs, ops, IDs).
+var envSensitive = regexp.MustCompile(`(?i)(token|key|secret|password|passwd|pass|auth|credential|cookie|session|private)`)
+
+// MinSecretLength is the shortest env value scrubbed by value; shorter values
+// (ports, flags, small numbers) would corrupt unrelated output.
+const MinSecretLength = 8
+
+// SensitiveEnv reports whether an environment variable name looks secret.
+func SensitiveEnv(key string) bool { return envSensitive.MatchString(key) }
+
+func isWordByte(b byte) bool {
+	return b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
+}
+
+// replaceToken replaces v in s only where it is not embedded in a longer
+// alphanumeric run, so "1234" never matches inside "512345".
+func replaceToken(s, v string) string {
+	var b strings.Builder
+	for {
+		i := strings.Index(s, v)
+		if i < 0 {
+			b.WriteString(s)
+			return b.String()
+		}
+		end := i + len(v)
+		before := i > 0 && isWordByte(s[i-1]) && isWordByte(v[0])
+		after := end < len(s) && isWordByte(s[end]) && isWordByte(v[len(v)-1])
+		b.WriteString(s[:i])
+		if before || after {
+			b.WriteString(v)
+		} else {
+			b.WriteString(Hidden)
+		}
+		s = s[end:]
+	}
+}
+
 type Redactor struct{ Values []string }
 
 func (r Redactor) Text(s string) string {
@@ -26,7 +64,7 @@ func (r Redactor) Text(s string) string {
 	sort.Slice(values, func(i, j int) bool { return len(values[i]) > len(values[j]) })
 	for _, v := range values {
 		if v != "" {
-			s = strings.ReplaceAll(s, v, Hidden)
+			s = replaceToken(s, v)
 		}
 	}
 	s = headers.ReplaceAllString(s, "${1}"+Hidden)
@@ -84,11 +122,14 @@ func (r Redactor) Value(v any, showEnv bool) any {
 		return v
 	}
 }
+
+// AllEnvironmentValues returns env values to scrub everywhere in output: only
+// values of sensitive-looking keys that are at least MinSecretLength long.
 func AllEnvironmentValues(p map[string]any) []string {
 	out := []string{}
 	if m, ok := p["EnvironmentVariables"].(map[string]any); ok {
-		for _, v := range m {
-			if s, ok := v.(string); ok && s != "" {
+		for key, v := range m {
+			if s, ok := v.(string); ok && len(s) >= MinSecretLength && SensitiveEnv(key) {
 				out = append(out, s)
 			}
 		}

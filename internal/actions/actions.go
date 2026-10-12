@@ -40,8 +40,13 @@ type Report struct {
 	DryRun        bool         `json:"dryRun"`
 	Ops           []Operation  `json:"ops"`
 	Result        string       `json:"result"`
+	Note          string       `json:"note,omitempty"`
 	Error         *ActionError `json:"error"`
 }
+
+// ForeignDryRunNote tells callers a planned foreign-job change will be refused without confirmation.
+const ForeignDryRunNote = "foreign job: a real run requires --yes plus typed confirmation of the label on a TTY"
+
 type Options struct{ DryRun, Yes, PurgeLog bool }
 type Service struct {
 	Runner       runner.Runner
@@ -147,6 +152,9 @@ func (s Service) Execute(ctx context.Context, action string, i model.Item, opts 
 	isBrew := i.Kind == "brew" || i.BrewName != ""
 	if isBrew && action != "start" && action != "stop" && action != "restart" {
 		return refuse("unsupported_action", "Homebrew services support start, stop, and restart only")
+	}
+	if opts.DryRun && destructive(action) && (!i.Registered || !i.Managed || !i.CreatedByTool) {
+		r.Note = ForeignDryRunNote
 	}
 	if !opts.DryRun && destructive(action) {
 		// Check ancestry before confirmation, and again against fresh live state before mutation.

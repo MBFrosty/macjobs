@@ -77,6 +77,11 @@ func addActions(root *cobra.Command, snapshot func(*cobra.Command) (inventory.Re
 				if err != nil {
 					return errors.New(red.Text(err.Error()))
 				}
+				if report.Note != "" {
+					if _, e := fmt.Fprintln(cmd.OutOrStdout(), "note: "+report.Note); e != nil {
+						return e
+					}
+				}
 				_, e := fmt.Fprintln(cmd.OutOrStdout(), report.Result)
 				return e
 			}

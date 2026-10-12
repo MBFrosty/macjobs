@@ -58,7 +58,7 @@ func TestActionJSONGolden(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			collect := func(context.Context, registry.Registry, bool) (inventory.Result, error) {
 				report := model.NewReport()
-				report.Items = []model.Item{{ID: "com.example.worker", Label: "com.example.worker", Kind: "launchd", PlistPath: path, Live: tc.name != "start" && tc.name != "enable", Plist: map[string]any{"EnvironmentVariables": map[string]any{"MODE": "private-value"}}}}
+				report.Items = []model.Item{{ID: "com.example.worker", Label: "com.example.worker", Kind: "launchd", PlistPath: path, Live: tc.name != "start" && tc.name != "enable", Plist: map[string]any{"EnvironmentVariables": map[string]any{"SERVICE_TOKEN": "private-value"}}}}
 				return inventory.Result{Report: report}, nil
 			}
 			factory := func(_ *cobra.Command, path string) (actions.Service, error) {
@@ -91,10 +91,10 @@ func TestActionJSONGolden(t *testing.T) {
 		})
 	}
 }
-func TestActionRedactsAllEnvironmentValues(t *testing.T) {
+func TestActionRedactsSensitiveEnvironmentValues(t *testing.T) {
 	collect := func(context.Context, registry.Registry, bool) (inventory.Result, error) {
 		report := model.NewReport()
-		report.Items = []model.Item{{ID: "com.example.private-value", Label: "com.example.private-value", Kind: "launchd", Live: true, Plist: map[string]any{"EnvironmentVariables": map[string]any{"MODE": "private-value"}}}}
+		report.Items = []model.Item{{ID: "com.example.private-value", Label: "com.example.private-value", Kind: "launchd", Live: true, Plist: map[string]any{"EnvironmentVariables": map[string]any{"SERVICE_TOKEN": "private-value"}}}}
 		return inventory.Result{Report: report}, nil
 	}
 	cmd := NewWithActions("test", collect, func(*cobra.Command, string) (actions.Service, error) {
@@ -108,5 +108,49 @@ func TestActionRedactsAllEnvironmentValues(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "private-value") || !strings.Contains(out.String(), "[REDACTED]") {
 		t.Fatal(out.String())
+	}
+}
+
+func TestForeignDryRunNote(t *testing.T) {
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	agents := filepath.Join(home, "Library", "LaunchAgents")
+	plistPath := filepath.Join(agents, "com.example.foreign.plist")
+	if err := os.MkdirAll(agents, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(plistPath, []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>Label</key><string>com.example.foreign</string><key>ProgramArguments</key><array><string>/usr/bin/true</string></array></dict></plist>`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	collect := func(context.Context, registry.Registry, bool) (inventory.Result, error) {
+		report := model.NewReport()
+		report.Items = []model.Item{{ID: "com.example.foreign", Label: "com.example.foreign", Kind: "launchd", Live: true, PlistPath: plistPath}}
+		return inventory.Result{Report: report}, nil
+	}
+	for _, action := range []string{"stop", "remove"} {
+		for _, asJSON := range []bool{false, true} {
+			cmd := NewWithActions("test", collect, func(*cobra.Command, string) (actions.Service, error) {
+				return actions.Service{Runner: forbiddenRunner{t}, UID: 501, Home: home}, nil
+			})
+			out := &bytes.Buffer{}
+			cmd.SetOut(out)
+			args := []string{"--registry", filepath.Join(t.TempDir(), "missing"), action, "com.example.foreign", "--dry-run"}
+			if asJSON {
+				args = append(args, "--json")
+			}
+			cmd.SetArgs(args)
+			if err := cmd.Execute(); err != nil {
+				t.Fatal(err)
+			}
+			want := "note: "
+			if asJSON {
+				want = `"note": "`
+			}
+			if !strings.Contains(out.String(), want+actions.ForeignDryRunNote) || !strings.Contains(out.String(), "planned") {
+				t.Fatalf("%s json=%v: %s", action, asJSON, out.String())
+			}
+		}
 	}
 }
