@@ -1,0 +1,34 @@
+{
+  "entry": {
+    "command": "/bin/echo \"$MODE\"",
+    "env": {
+      "API_TOKEN": "[REDACTED]",
+      "MODE": "[REDACTED]",
+      "PATH": "[REDACTED]",
+      "SHELL": "[REDACTED]"
+    },
+    "schedule": "*/15 0-23/2 * jan,apr mon-fri"
+  },
+  "item": {
+    "command": "/bin/echo \"$MODE\"",
+    "created_by_tool": false,
+    "health": "ok",
+    "id": "cron:user:3555dd72",
+    "kind": "cron",
+    "label": "*/15 0-23/2 * jan,apr mon-fri /bin/echo \"$MODE\"",
+    "line": 7,
+    "managed": false,
+    "notes": [],
+    "owner": "ops",
+    "readOnly": true,
+    "schedule": "*/15 0-23/2 * jan,apr mon-fri",
+    "source": "user",
+    "state": "scheduled",
+    "tags": [
+      "nightly"
+    ]
+  },
+  "plist": null,
+  "schemaVersion": 1,
+  "warnings": []
+}

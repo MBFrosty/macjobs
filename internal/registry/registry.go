@@ -79,7 +79,7 @@ func Validate(r Registry) error {
 			return err
 		}
 		switch e.Kind {
-		case "", "launchd", "system", "brew", "tailscale", "process":
+		case "", "launchd", "system", "brew", "tailscale", "process", "cron":
 		default:
 			return errors.New("unknown registry kind")
 		}

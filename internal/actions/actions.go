@@ -128,6 +128,9 @@ func (s Service) plist(i model.Item) ([]byte, os.FileInfo, error) {
 func (s Service) Execute(ctx context.Context, action string, i model.Item, opts Options) (Report, error) {
 	r := Report{SchemaVersion: model.SchemaVersion, Action: action, ID: i.ID, Label: i.Label, Kind: i.Kind, DryRun: opts.DryRun, Ops: []Operation{}, Result: "planned"}
 	refuse := func(code, message string) (Report, error) { err := Failure(&r, code, message); return r, err }
+	if i.Kind == "cron" || strings.HasPrefix(i.ID, "cron:") {
+		return refuse("display_only", "cron items are read-only in macjobs")
+	}
 	if !safeLabel.MatchString(i.Label) && i.Kind != "tailscale" {
 		return refuse("invalid_label", "job label is invalid")
 	}

@@ -38,7 +38,7 @@ func (s Service) updateTags(ctx context.Context, i model.Item, tags []string, dr
 		return fail("invalid_id", "a job ID is required")
 	}
 	switch i.Kind {
-	case "launchd", "system", "brew", "tailscale", "process":
+	case "launchd", "system", "brew", "tailscale", "process", "cron":
 	default:
 		return fail("unsupported_kind", "unknown job kind")
 	}

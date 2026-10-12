@@ -78,7 +78,7 @@ func NewWithServices(version string, collect Collect, factory ActionFactory, wat
 		}
 		return Table(cmd.OutOrStdout(), report, result.Redactor)
 	}}
-	list.Flags().StringVar(&kind, "kind", "", "Filter: launchd, system, brew, tailscale, process")
+	list.Flags().StringVar(&kind, "kind", "", "Filter: launchd, system, brew, tailscale, process, cron")
 	list.Flags().StringVar(&owner, "owner", "", "Filter by registry owner")
 	list.Flags().BoolVar(&unhealthy, "unhealthy", false, "Show warn, fail, and unknown health")
 	list.Flags().StringSliceVar(&tags, "tag", nil, "Filter by any tag; repeat or use a comma list")
@@ -109,7 +109,7 @@ func NewWithServices(version string, collect Collect, factory ActionFactory, wat
 	portsCmd.Flags().BoolVar(&unattributed, "unattributed", false, "Show only listeners with no known job")
 	root.AddCommand(portsCmd)
 	var showEnv bool
-	show := &cobra.Command{Use: "show <id>", Short: "Show live state and redacted plist metadata", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	show := &cobra.Command{Use: "show <id>", Short: "Show state and redacted plist or cron metadata", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		result, e := snapshot(cmd)
 		if e != nil {
 			return e
@@ -122,11 +122,15 @@ func NewWithServices(version string, collect Collect, factory ActionFactory, wat
 		// Environment values remain private in all output.
 
 		payload := struct {
-			SchemaVersion int        `json:"schemaVersion"`
-			Item          model.Item `json:"item"`
-			Plist         any        `json:"plist"`
-			Warnings      []string   `json:"warnings"`
-		}{model.SchemaVersion, item, r.Value(item.Plist, false), result.Report.Warnings}
+			SchemaVersion int              `json:"schemaVersion"`
+			Item          model.Item       `json:"item"`
+			Plist         any              `json:"plist"`
+			Warnings      []string         `json:"warnings"`
+			Entry         *model.CronEntry `json:"entry,omitempty"`
+		}{model.SchemaVersion, item, r.Value(item.Plist, false), result.Report.Warnings, item.CronEntry}
+		if item.Kind == "cron" {
+			payload.Plist = nil
+		}
 		// JSON is also the human-readable detail format.
 		return write(cmd, payload, r)
 	}}
@@ -345,7 +349,7 @@ func Table(w io.Writer, r model.Report, red redact.Redactor) error {
 }
 
 // ValidKinds are the values accepted by list --kind.
-var ValidKinds = []string{"launchd", "system", "brew", "tailscale", "process"}
+var ValidKinds = []string{"launchd", "system", "brew", "tailscale", "process", "cron"}
 
 func validateKind(kind string) error {
 	if kind == "" {

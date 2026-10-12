@@ -112,3 +112,22 @@ end if` {
 		t.Fatal(got)
 	}
 }
+
+func TestCronAllowlist(t *testing.T) {
+	for _, name := range []string{"crontab", "/usr/bin/crontab"} {
+		if !Allowed(name, []string{"-l"}) {
+			t.Fatal("cron read refused")
+		}
+	}
+	for _, args := range [][]string{nil, {"-e"}, {"-r"}, {"-u", "alice", "-l"}, {"file"}, {"-l", "file"}, {"-l "}, {"-l", ""}, {"--list"}} {
+		if Allowed("crontab", args) {
+			t.Fatal("cron near miss allowed", args)
+		}
+		if _, err := (OS{}).Run(context.Background(), "crontab", args...); err == nil {
+			t.Fatal("unsafe command not refused")
+		}
+		if LifecycleAllowed("crontab", args) {
+			t.Fatal("cron mutation path allowed")
+		}
+	}
+}

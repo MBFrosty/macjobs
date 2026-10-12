@@ -31,6 +31,7 @@ type Collector struct {
 	UID           int
 	PlistDirs     map[string]string
 	TailscalePath string
+	SystemCrontab string
 	Now           func() time.Time
 }
 type Result struct {
@@ -54,7 +55,7 @@ func New() (*Collector, error) {
 	if _, e := exec.LookPath(ts); e != nil {
 		ts = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
 	}
-	return &Collector{Runner: runner.OS{}, Home: home, UID: os.Getuid(), TailscalePath: ts, Now: time.Now, PlistDirs: map[string]string{filepath.Join(home, "Library", "LaunchAgents"): "launchd", "/Library/LaunchAgents": "launchd", "/Library/LaunchDaemons": "system"}}, nil
+	return &Collector{Runner: runner.OS{}, Home: home, UID: os.Getuid(), TailscalePath: ts, SystemCrontab: "/etc/crontab", Now: time.Now, PlistDirs: map[string]string{filepath.Join(home, "Library", "LaunchAgents"): "launchd", "/Library/LaunchAgents": "launchd", "/Library/LaunchDaemons": "system"}}, nil
 }
 func (c *Collector) Collect(ctx context.Context, reg registry.Registry, all bool) Result {
 	result := Result{Report: model.NewReport(), routes: map[string]tailscale.Route{}}
@@ -205,6 +206,7 @@ func (c *Collector) Collect(ctx context.Context, reg registry.Registry, all bool
 	} else {
 		warn("Homebrew services unavailable")
 	}
+	cronKnown := c.collectCron(ctx, items, &result)
 	tsKnown := false
 	// Status holds node routes; get-config may hold additional service routes.
 	for _, args := range [][]string{{"serve", "status", "--json"}, {"serve", "get-config", "--all"}} {
@@ -284,6 +286,13 @@ func (c *Collector) Collect(ctx context.Context, reg registry.Registry, all bool
 			known := domains[kind]
 			if kind == "tailscale" {
 				known = tsKnown
+			}
+			if kind == "cron" {
+				source := "user"
+				if strings.HasPrefix(e.ID, "cron:system:") {
+					source = "system"
+				}
+				known = cronKnown[source]
 			}
 			item = &model.Item{ID: e.ID, Label: e.ID, Kind: kind, State: "absent", ReadOnly: true, Observed: known}
 			items[e.ID] = item

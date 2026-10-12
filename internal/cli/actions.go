@@ -106,6 +106,9 @@ func addActions(root *cobra.Command, snapshot func(*cobra.Command) (inventory.Re
 				return fail("not_found", "job ID not found; use list to find its exact ID")
 			}
 			report.Label, report.Kind = item.Label, item.Kind
+			if item.Kind == "cron" || strings.HasPrefix(item.ID, "cron:") {
+				return fail("display_only", "cron items are read-only in macjobs")
+			}
 			service, err := factory(cmd, path)
 			if err != nil {
 				return fail("configuration_error", err.Error())

@@ -1,0 +1,4 @@
+# System source has a run-as column.
+MAILTO=alice@example.com
+0 4 * * * root /bin/echo system
+@weekly alice /usr/bin/curl -u alice:fixture-basic-secret -H 'Authorization: Bearer fixture-bearer-secret'

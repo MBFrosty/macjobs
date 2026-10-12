@@ -1,6 +1,6 @@
 # macjobs design
 
-Architecture, contracts, safety model, and known limitations for the macjobs Go CLI on macOS. Updated October 11, 2026.
+Architecture, contracts, safety model, and known limitations for the macjobs Go CLI on macOS. Updated October 12, 2026.
 
 ## Research
 
@@ -19,7 +19,7 @@ Architecture, contracts, safety model, and known limitations for the macjobs Go 
 
 ## Analysis
 
-- **Components.** (1) Collectors: launchd, brew, tailscale, processes and ports. (2) A merge/model layer joining live state with the registry by label. (3) Health rules. (4) Lifecycle actions. (5) Templates/plist writer. (6) Table and JSON output. This is integration work with no networked service or database.
+- **Components.** (1) Collectors: launchd, brew, tailscale, processes, ports, and read-only cron. (2) A merge/model layer joining live state with the registry by label. (3) Health rules. (4) Lifecycle actions. (5) Templates/plist writer. (6) Table and JSON output. This is integration work with no networked service or database.
 - **Health.** Each item rolls up to ok / warn / fail / unknown:
   - KeepAlive jobs that are not running, or high `runs` with a nonzero exit (possible crash loop).
   - Scheduled jobs with nonzero last exit or a log older than twice the interval.
@@ -44,6 +44,7 @@ Go 1.23+, single module:
 ```text
 cmd/macjobs/main.go         # cobra root; global flags --json --dry-run --yes --all
 internal/launchd/           # print/list parser, domains, bootstrap/bootout/kickstart/enable/disable
+internal/cron/              # pure crontab parser: schedules, IDs, env, shell-word heuristic
 internal/plist/             # launchd structs (howett.net/plist), schedule humanizer
 internal/brew/ internal/tailscale/ internal/procs/   # collectors (exec + JSON), lsof port probe
 internal/registry/          # YAML load/save, atomic write, schema version
@@ -57,10 +58,24 @@ testdata/                   # sanitized launchctl/brew/tailscale captures, golde
 
 - **Exec seam.** All shell-outs go through a `Runner` interface. Tests replay sanitized fixtures and never touch launchd or other host service managers.
 
+## Cron collector
+
+The inspection Runner gains exactly `crontab -l` (one argument, matched individually); `-e`, `-r`, `-u`, filenames, and every other argument combination are refused. The lifecycle Runner gains no commands. `Collector.SystemCrontab` defaults to `/etc/crontab` in `New`; fixture collectors inject a temporary path or leave it empty to skip system-file I/O. No sudo or spool access is used.
+
+The pure parser skips blank/comment lines, keeps physical line numbers (including CRLF), records environment assignments, validates five-field schedules with ranges/steps/lists/month/day names, and accepts `@reboot`, `@yearly`, `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight`, and `@hourly`. System entries consume a run-as column before the command. Command spacing is preserved. Environment scope follows line order, with inline assignment prefixes included. SHELL/PATH remain private parser context; relative executable resolution and shell evaluation are deliberately omitted.
+
+IDs are `cron:<user|system>:<hash8>` where hash8 is the first eight hex digits of SHA-256 over normalized schedule + NUL + original command. Identical entries get ordered `-2`, `-3` suffixes. Line numbers are separate observations; comments/reordering preserve IDs, command/schedule changes orphan prior registry metadata. Run-as is an additive observation rather than part of the hash; identical system schedules/commands with different users are distinguished by the duplicate suffix. Malformed entries use `cron:<source>:invalid-L<n>` and retain no raw command/schedule in output.
+
+Cron items are observed/live when their source was read and have state `scheduled`, owner `unknown` until registry merge, and `readOnly: true`. Source availability is tracked independently for user/system registry orphans. A successful empty read or missing system file means no jobs. Exit 1 with empty stdout is also treated as an empty user crontab because stderr is suppressed; permission denial with the same output/exit is indistinguishable. Other user failures warn about Full Disk Access, and system read failures warn that the file was skipped. Unavailable sources yield unknown health for registry entries, rather than false orphan failures.
+
+All cron env values are hidden in `show`; values of at least `redact.MinSecretLength` are also registered for output/log redaction regardless of key sensitivity. Inline assignments and credential options are masked by shell-word boundaries, including short values and quoted/escaped words, without execution. URL userinfo and authorization patterns reuse the shared Redactor. Labels are redacted before truncation. Doctor checks the first literal shell word after assignment prefixes with the shared absolute-program existence helper (foreign: warn, managed: fail); malformed lines warn without content, and `%` yields a semantics warning. No run history, next-run, or log-staleness inference is added.
+
+JSON keeps schemaVersion 1 with optional item `command`, `source`, `line`, `runAs`, and cron show `entry: {schedule, command, env}` plus `plist: null`. Existing kinds retain their show shape. Registry kind validation and tag transactions accept cron; tags never grant lifecycle authority. Execute/adopt/create guards refuse cron before plist checks or command execution, including previews and confirmation overrides.
+
 ## Lifecycle and creation
 
 - **Read-only inventory.** `list`, `show`, `logs`, `ports`, and `doctor` never mutate launchd or registry files.
-- **Lifecycle.** `start`/`stop`/`restart` (`kickstart -k`, `bootout`/`bootstrap`), `enable`/`disable` (launchctl enable/disable plus bootout), `edit` (opens `$EDITOR` on the plist, validates with `plutil -lint`, then reloads), and `remove`. Brew items delegate to `brew services`. Tailscale remains display-only.
+- **Lifecycle.** `start`/`stop`/`restart` (`kickstart -k`, `bootout`/`bootstrap`), `enable`/`disable` (launchctl enable/disable plus bootout), `edit` (opens `$EDITOR` on the plist, validates with `plutil -lint`, then reloads), and `remove`. Brew items delegate to `brew services`. Tailscale and cron remain display-only.
 - **Foreign items** (unregistered, `managed:false`, or `created_by_tool:false`) require BOTH `--yes` and typed-label confirmation on a TTY for `stop`, `restart`, `disable`, `remove`, and `edit`. Non-TTY callers refuse even with `--yes`. Every mutation supports `--dry-run`, showing launchctl/brew/file operations without execution.
 - **Stop** uses `bootout` to unload rather than kill, preventing scheduled/KeepAlive relaunch until bootstrap. **Restart** bootstraps unloaded jobs before `kickstart -k`.
 - **`remove`** moves the plist to `~/.config/macjobs/trash/` without deleting it.
@@ -83,7 +98,7 @@ testdata/                   # sanitized launchctl/brew/tailscale captures, golde
 ## Safety model
 
 - Inspection Runner allowlist is separate from lifecycle Runner allowlist.
-- Tailscale routes and registry-matched processes are display-only for lifecycle; tags are metadata only.
+- Tailscale routes, cron entries, and registry-matched processes are display-only for lifecycle; tags are metadata only.
 - Foreign-job TTY confirmation, dry-run previews, and ancestor-PID guards apply as documented in README.md.
 - Output redaction applies to environment values, credentials, and sensitive paths in diagnostics.
 

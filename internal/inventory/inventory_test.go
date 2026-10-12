@@ -69,7 +69,7 @@ func fixtureCollector(t *testing.T) (*Collector, *replay, registry.Registry, str
 		"launchctl print gui/501": domain, "launchctl print system": []byte("system = {\n\tservices = {\n\t}\n}\n"),
 		"launchctl print-disabled gui/501": read(t, "launchctl-disabled.txt"), "launchctl print-disabled system": []byte("disabled services = {\n}\n"),
 		"launchctl print gui/501/com.example.worker": []byte(state), "launchctl print gui/501/com.apple.example": []byte("job = {\n\tstate = not running\n}\n"),
-		"brew services list --json": read(t, "brew.json"), "tailscale serve status --json": read(t, "tailscale-status.json"), "tailscale serve get-config --all": read(t, "tailscale-get-config.json"),
+		"crontab -l": []byte(""), "brew services list --json": read(t, "brew.json"), "tailscale serve status --json": read(t, "tailscale-status.json"), "tailscale serve get-config --all": read(t, "tailscale-get-config.json"),
 		"lsof -nP -iTCP -sTCP:LISTEN": read(t, "lsof.txt"), "lsof -nP -iUDP": []byte(""), "ps -axo pid=,ppid=,comm=": read(t, "ps-tree.txt"), "ps -axo pid=,comm=": read(t, "ps.txt"),
 	}}
 	c := &Collector{Runner: r, Home: dir, UID: 501, TailscalePath: "tailscale", PlistDirs: map[string]string{dir: "launchd"}, Now: func() time.Time { return now }}

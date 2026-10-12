@@ -35,6 +35,9 @@ func (s Service) Create(ctx context.Context, o CreateOptions) (CreateReport, err
 		err := Failure(&r.Report, code, message)
 		return r, err
 	}
+	if o.Template.Template == "cron" || strings.HasPrefix(o.Name, "cron:") {
+		return fail("display_only", "cron items are read-only in macjobs")
+	}
 	tags, tagErr := registry.NormalizeTags(o.Tags)
 	if tagErr != nil {
 		return fail("invalid_tags", tagErr.Error())
@@ -193,6 +196,9 @@ type AdoptOptions struct {
 func (s Service) Adopt(ctx context.Context, i model.Item, o AdoptOptions) (Report, error) {
 	r := Report{SchemaVersion: model.SchemaVersion, Action: "adopt", ID: i.ID, Label: i.Label, Kind: i.Kind, DryRun: o.DryRun, Result: "planned", Ops: []Operation{}}
 	fail := func(code, message string) (Report, error) { err := Failure(&r, code, message); return r, err }
+	if i.Kind == "cron" || strings.HasPrefix(i.ID, "cron:") {
+		return fail("display_only", "cron items are read-only in macjobs")
+	}
 	tags, tagErr := registry.NormalizeTags(o.Tags)
 	if tagErr != nil {
 		return fail("invalid_tags", tagErr.Error())

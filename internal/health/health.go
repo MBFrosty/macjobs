@@ -28,6 +28,7 @@ func Evaluate(i *model.Item, p procs.Snapshot, now time.Time) {
 		add(i, "unknown", "plist could not be read")
 	}
 	programFindings(i)
+	cronFindings(i)
 	if i.Disabled {
 		add(i, "warn", "disabled by launchd override")
 	}
@@ -143,7 +144,10 @@ func programFindings(i *model.Item) {
 	if strings.HasPrefix(i.Label, "com.apple.") || strings.HasPrefix(i.ID, "com.apple.") {
 		return
 	}
-	program := programPath(i.Plist)
+	missingProgram(i, programPath(i.Plist))
+}
+
+func missingProgram(i *model.Item, program string) {
 	if program == "" || !filepath.IsAbs(program) {
 		return
 	}
@@ -327,4 +331,18 @@ func FormatPort(protoName string, port int) string {
 		return strconv.Itoa(port) + "/udp"
 	}
 	return strconv.Itoa(port)
+}
+
+func cronFindings(i *model.Item) {
+	if i.Kind != "cron" {
+		return
+	}
+	if i.CronMalformed {
+		add(i, "warn", fmt.Sprintf("malformed cron line %d", i.Line))
+		return
+	}
+	if i.CronPercent {
+		add(i, "warn", "cron % splits command and stdin (unless escaped)")
+	}
+	missingProgram(i, i.CronProgram)
 }

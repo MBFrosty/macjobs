@@ -29,6 +29,8 @@ func (OS) Run(ctx context.Context, name string, args ...string) ([]byte, error) 
 func Allowed(name string, args []string) bool {
 	a := strings.Join(args, " ")
 	switch filepath.Base(name) {
+	case "crontab":
+		return len(args) == 1 && args[0] == "-l"
 	case "launchctl":
 		if len(args) == 1 && args[0] == "list" {
 			return true

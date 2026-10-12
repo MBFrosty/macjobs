@@ -1,6 +1,6 @@
 # macjobs
 
-**macjobs: the bot- and agent-first job manager for Mac.** One inventory across launchd, Homebrew services, Tailscale Serve/Funnel and processes, readable and safely operable by AI agents.
+**macjobs: the bot- and agent-first job manager for Mac.** One inventory across launchd, Homebrew services, Tailscale Serve/Funnel, processes, and read-only cron, readable and safely operable by AI agents.
 
 - **Stable machine output** — versioned `--json` (`schemaVersion`) for list, show, doctor, ports, logs, and lifecycle actions.
 - **Local context** — owner, purpose, and tags in a registry beside live state, so agents know what a job is for.
@@ -67,12 +67,12 @@ Operator-focused skill for assistants with shell access on a Mac (not for macjob
 | [lanchr](https://github.com/lu-zhengda/lanchr) | Go CLI + TUI | launchd agents and daemons | `--json` on all commands; ships a Claude Code skill | MIT |
 | [LaunchControl](https://www.soma-zone.com/LaunchControl/) | Native GUI | launchd jobs | expert/XML editing, log views, troubleshooting | Commercial |
 | [ZLaunch Manager (zlm)](https://github.com/zavora-ai/macos-zlaunch-manager) | Swift GUI + CLI + MCP server | launchd only (user/global/system domains) | MCP tools for AI assistants | Apache-2.0 |
-| **macjobs** | Go CLI | launchd, Homebrew, Tailscale Serve/Funnel, registry processes/ports | versioned `--json`, registry, redaction, dry-run, portable bot skill | MIT |
+| **macjobs** | Go CLI | launchd, Homebrew, Tailscale Serve/Funnel, registry processes/ports, cron | versioned `--json`, registry, redaction, dry-run, portable bot skill | MIT |
 
 - **[launchdeck](https://github.com/sderosiaux/launchdeck)** unifies launchd jobs and Homebrew services in a Rust TUI with status, schedules, plist metadata, provenance, logs, and guarded lifecycle actions. macjobs focuses on one inventory that also spans Tailscale routes and matched processes, with a versioned JSON contract, a local registry, redaction, and dry-run-first changes.
 - **[lanchr](https://github.com/lu-zhengda/lanchr)** is a Go CLI and TUI for launchd with list/info/search, enable/disable/load/unload/restart, logs, doctor, templates, export/import, and `--json` on every command. macjobs adds Homebrew and Tailscale collectors, port attribution, tags, and foreign-job confirmation for safe agent operation.
 - **[LaunchControl](https://www.soma-zone.com/LaunchControl/)** is a commercial native GUI for creating, managing, and debugging launchd jobs with expert editing and log views. macjobs is CLI-first for scripts and agents, combines multiple backends, and keeps mutations behind dry-run and confirmation gates.
-- **ZLaunch Manager ([zlm](https://github.com/zavora-ai/macos-zlaunch-manager))** pairs a SwiftUI app and a `zlm` CLI with an MCP server, so AI assistants can manage launchd services. macjobs focuses on one inventory that spans launchd, Homebrew services, Tailscale Serve/Funnel and processes, with a versioned `--json` contract, a registry, redaction and dry-run-first changes.
+- **ZLaunch Manager ([zlm](https://github.com/zavora-ai/macos-zlaunch-manager))** pairs a SwiftUI app and a `zlm` CLI with an MCP server, so AI assistants can manage launchd services. macjobs focuses on one inventory that spans launchd, Homebrew services, Tailscale Serve/Funnel, processes, and read-only cron, with a versioned `--json` contract, a registry, redaction and dry-run-first changes.
 
 ## Install notes
 
@@ -109,13 +109,30 @@ macjobs doctor --json
 macjobs registry init
 ```
 
-`list` shows IDs, kinds, owners, tags, state, PID, ports, schedule, inferred last run, last exit, health, purpose, and findings. `--all` includes Apple jobs, which are otherwise hidden. Kinds are `launchd` (user agents), `system` (daemons), `brew`, `tailscale`, and `process`. Homebrew services already present in launchd are shown once as launchd items with Homebrew ownership. `--unhealthy` includes warn, fail, and unknown items. `--port` accepts repeated flags or comma lists and matches any observed, declared, inferred, socket, or Tailscale front/backend port; multiple ports are OR, then AND with kind, owner, tag, and unhealthy.
+`list` shows IDs, kinds, owners, tags, state, PID, ports, schedule, inferred last run, last exit, health, purpose, and findings. `--all` includes Apple jobs, which are otherwise hidden. Kinds are `launchd` (user agents), `system` (daemons), `brew`, `tailscale`, `process`, and `cron`. Homebrew services already present in launchd are shown once as launchd items with Homebrew ownership. `--unhealthy` includes warn, fail, and unknown items. `--port` accepts repeated flags or comma lists and matches any observed, declared, inferred, socket, or Tailscale front/backend port; multiple ports are OR, then AND with kind, owner, tag, and unhealthy.
 
 `show` displays live state and the decoded plist as indented JSON. Environment values are always redacted. The old `--show-env` flag is accepted for compatibility but no longer reveals values. Authentication fields and recognized credentials stay redacted. `logs` reads the configured stdout/stderr files or registry log, keeps the last `-n` lines per file, and can follow appends, truncation, and rotation. Output is credential-redacted, including known job environment values. Large tails or lines above 4 MiB are refused. Missing logs return an error. Treat diagnostic output as private even after redaction.
 
 `doctor` only reports. It exits 1 when it has findings (any item fails), and 0 if there are no failures (warnings and unknown observations remain visible). Findings cover stopped KeepAlive jobs, possible crash loops, unsuccessful last termination, missing plists, registry orphans, stale scheduled logs, registered or local route target ports that are not listening, overlapping expected ports, and ports held by another job or an unattributed process. Crash-loop detection is a heuristic: at least five runs, no running PID, and an unsuccessful last termination. It does not measure recent restart frequency. A historical nonzero exit or signal remains a finding even after a job has restarted. A missing declared port is `fail` only for a KeepAlive or running job when listeners are visible; system jobs, socket-activated plists, and Tailscale front ports never fail for an invisible listener.
 
 Last-run time is inferred from the latest log modification time, not supplied by launchd. Interval log staleness means older than twice the configured interval. Calendar log checks use a conservative nominal cadence (hourly, daily, weekly, monthly, or yearly), taking the longest cadence for multiple entries. Log activity can differ from actual successful runs. Reading failures are reported as unknown; unavailable collectors and parsing drift produce warnings. Dynamically submitted jobs can legitimately have no plist. Some protected metadata may be unavailable without additional permissions; macjobs never requests sudo.
+
+## Cron (read-only)
+
+```sh
+macjobs list --kind cron
+macjobs list --kind cron --owner ops --tag nightly --json
+macjobs show cron:user:<hash8> --json
+macjobs doctor --json
+```
+
+Cron sources are the current user's `crontab -l` and `/etc/crontab` when readable without sudo. Missing or empty crontabs produce no items or warnings. An unreadable system crontab is skipped with a warning; other user-crontab failures warn that Full Disk Access may be needed. Under launchd, macOS privacy controls can block access: check collector warnings before interpreting an empty result. Stderr is suppressed for privacy, so exit 1 with empty stdout is treated as no crontab; that case cannot be distinguished from a permission denial with the same exit/output. macjobs never reads the spool directly or requests sudo.
+
+Entries use `cron:user:<hash8>` or `cron:system:<hash8>`, the first eight hex digits of SHA-256 over the normalized schedule, a NUL separator, and the original command. IDs survive comment edits and line reordering; identical entries gain `-2`, `-3`, etc. Changing the command or schedule changes its ID. Tags and owner metadata belong to that ID; after an edit, old registry entries remain visible as absent. System entries also show the run-as user. The schedule stays in cron notation (five fields or a supported macro). State `scheduled` means listed, with no observation of execution or next-run calculation. Login items are outside this collector's scope.
+
+`show` adds `entry: {schedule, command, env}` with environment keys and redacted values, and `plist: null`. Environment assignment values and inline assignments are private; known values of at least eight characters are also scrubbed elsewhere. URL userinfo, credential flags, authorization headers, and curl `-u` credentials are redacted before labeling or printing. Malformed entries expose only source, line number, and a warning, never their raw text. Doctor warns about malformed lines, `%` command/stdin semantics, and missing absolute executables; a missing executable is fail when registry-managed. It does not resolve relative programs through PATH or interpret shell expansions.
+
+`start`, `stop`, `restart`, `enable`, `disable`, `edit`, and `remove` refuse cron even with `--dry-run` or `--yes`. `create cron` and adoption are also refused. Tag/untag only edit local registry metadata and remain available. There are no crontab editing, removal, or installation commands.
 
 ## Local registry
 
@@ -165,7 +182,7 @@ macjobs create interval --name example-tagged --every 10m --tag homelab --dry-ru
 macjobs adopt com.example.worker --owner team --tag homelab --dry-run
 ```
 
-Preview state changes first and obtain approval before execution. Tags are registry metadata for launchd, system, Homebrew, Tailscale, and process IDs. Use an exact ID from `list`; tagging never changes services, plists, `managed`, or `created_by_tool`, and never bypasses lifecycle safety gates. Apple jobs (`com.apple.*`, including system-prefixed IDs) are refused.
+Preview state changes first and obtain approval before execution. Tags are registry metadata for launchd, system, Homebrew, Tailscale, process, and cron IDs. Use an exact ID from `list`; tagging never changes services, plists, `managed`, or `created_by_tool`, and never bypasses lifecycle safety gates. Apple jobs (`com.apple.*`, including system-prefixed IDs) are refused.
 
 CLI tags normalize to lowercase and must match `^[a-z0-9][a-z0-9._-]{0,31}$` (1–32 characters). Tags are deduplicated and sorted. Tag/untag accept separate positional tags; list/create/adopt `--tag` accepts repeated flags or comma lists. Multiple filter tags match ANY (OR), ANDed with kind, owner, port, and unhealthy. The TAGS column appears immediately after OWNER, joins tags with commas, and shows `-` when empty. JSON and YAML omit empty tags; schemaVersion stays 1.
 
@@ -193,15 +210,15 @@ A non-root `lsof` on macOS sees only the current user's processes. Root-owned li
 
 ## JSON contract
 
-`list --json` and `doctor --json` return `{ "schemaVersion": 1, "items": [], "warnings": [] }`. `ports --json` returns `{ "schemaVersion": 1, "listeners": [], "warnings": [] }`. `show` returns `{ "schemaVersion": 1, "item": {}, "plist": {}, "warnings": [] }`; `plist` is an empty object when unavailable. `registry init --json` returns the registry document. `logs --json` emits newline-delimited JSON records with `schemaVersion`, `id`, `path`, and `line`, one record per log line (NDJSON, not a single JSON document). Follow mode keeps the same record shape.
+`list --json` and `doctor --json` return `{ "schemaVersion": 1, "items": [], "warnings": [] }`. `ports --json` returns `{ "schemaVersion": 1, "listeners": [], "warnings": [] }`. `show` returns `{ "schemaVersion": 1, "item": {}, "plist": {}, "warnings": [] }`; `plist` is an empty object when unavailable for existing kinds; cron uses `plist: null` and adds `entry: {schedule, command, env}`. `registry init --json` returns the registry document. `logs --json` emits newline-delimited JSON records with `schemaVersion`, `id`, `path`, and `line`, one record per log line (NDJSON, not a single JSON document). Follow mode keeps the same record shape.
 
-Item fields include `id`, `kind`, `owner`, `state`, `health`, `notes`, `managed`, `created_by_tool`, and `readOnly`. Optional observations include `tags` (omitted when empty), `label`, `domain`, `purpose`, `pid`, `schedule`, `lastRun` (UTC RFC 3339), `lastExit`, `signal`, `runs`, `plistPath`, `logs`, `port`, `ports`, `target`, `funnel`, and `disabled`. `port` is unchanged. Additive `ports` entries are `{proto, port, host?, pid?, source, listening, via?}` with `source` one of `declared`, `socket`, `inferred`, `tailscale`, or `observed`. Listener objects add `command`, `jobId`, and `expectedBy`. Missing `lastExit` means unknown or never exited; zero means an observed successful exit. Missing `lastRun` means no readable log timestamp. Health is `ok`, `warn`, `fail`, or `unknown`. Consumers should tolerate additional fields and unknown states. Collector warnings must be checked before interpreting an empty inventory as complete. schemaVersion stays 1.
+Item fields include `id`, `kind`, `owner`, `state`, `health`, `notes`, `managed`, `created_by_tool`, and `readOnly`. Optional observations include `tags` (omitted when empty), `label`, `domain`, `purpose`, `pid`, `schedule`, `lastRun` (UTC RFC 3339), `lastExit`, `signal`, `runs`, `plistPath`, `logs`, `port`, `ports`, `target`, `funnel`, `disabled`, and cron `command`, `source` (`user` or `system`), `line`, and `runAs`. `port` is unchanged. Additive `ports` entries are `{proto, port, host?, pid?, source, listening, via?}` with `source` one of `declared`, `socket`, `inferred`, `tailscale`, or `observed`. Listener objects add `command`, `jobId`, and `expectedBy`. Missing `lastExit` means unknown or never exited; zero means an observed successful exit. Missing `lastRun` means no readable log timestamp. Health is `ok`, `warn`, `fail`, or `unknown`. Consumers should tolerate additional fields and unknown states. Collector warnings must be checked before interpreting an empty inventory as complete. schemaVersion stays 1.
 
 ## Safety
 
 Inspection uses an explicit read-only Runner allowlist. Lifecycle operations use a separate Runner after ownership, domain, and process-ancestry checks. Every external command, including the editor, plist validation, and parent-PID queries, crosses this interface. Tests replay sanitized data and never call real service managers. The tool never invokes sudo or legacy launchctl load/unload.
 
-For lifecycle operations, system daemons, system domains, Apple labels, and `/System` paths are refused, including dry-runs. Tailscale routes and selected processes support registry tags but remain display-only for lifecycle. Lifecycle targets must be in the current user's `gui/<uid>` domain. Files used for bootstrap, edit, or removal must be regular, matching-label plists in the user's `~/Library/LaunchAgents` or `/Library/LaunchAgents`; symbolic-link paths are refused.
+For lifecycle operations, system daemons, system domains, Apple labels, and `/System` paths are refused, including dry-runs. Tailscale routes, selected processes, and cron entries support registry tags but remain display-only for lifecycle. Lifecycle targets must be in the current user's `gui/<uid>` domain. Files used for bootstrap, edit, or removal must be regular, matching-label plists in the user's `~/Library/LaunchAgents` or `/Library/LaunchAgents`; symbolic-link paths are refused.
 
 For a job that is unregistered, `managed: false`, or `created_by_tool: false`, **stop, restart, disable, edit, and remove require both `--yes` and a TTY confirmation**: type the exact job label. `--yes` alone never authorizes these actions, and a non-interactive invocation refuses with a nonzero exit status and a structured JSON error. A registered job with both flags true needs no confirmation. Start and enable do not use the foreign-job confirmation gate. Keep provenance accurate: marking an existing job as created by the tool bypasses this protection.
 
@@ -301,7 +318,7 @@ Each normal check exits zero and appends exactly one local RFC 3339 timestamped 
 
 ## Trash and restore
 
-A `--dry-run` of `stop`, `restart`, `disable`, `edit` or `remove` on a foreign job adds a `note` (text and JSON) that the real run needs `--yes` plus typed confirmation. `list --kind` accepts only `launchd`, `system`, `brew`, `tailscale`, `process`; anything else exits 1.
+A `--dry-run` of `stop`, `restart`, `disable`, `edit` or `remove` on a foreign job adds a `note` (text and JSON) that the real run needs `--yes` plus typed confirmation. `list --kind` accepts only `launchd`, `system`, `brew`, `tailscale`, `process`, `cron`; anything else exits 1.
 
 `remove` boots out a loaded job, moves its plist into `~/.config/macjobs/trash/<label>-<UTC timestamp>.plist`, and drops its registry entry. It never deletes the plist. `--purge-log` optionally deletes the unshared, absolute registry log of a tool-created job; foreign provenance, shared registry logs, and non-regular files are refused. Watchdog state is retained separately for rate limiting; remove its state and lock files explicitly when retiring a watchdog. Recovery files are not overwritten on a timestamp collision. If a later step fails, operations can be partially completed; inspect the JSON error and trash directory before retrying.
 

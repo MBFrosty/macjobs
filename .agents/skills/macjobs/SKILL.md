@@ -12,11 +12,11 @@ Portable operator guidance for assistants lives in `skills/macjobs-bot/SKILL.md`
 ## Ground rules
 
 - Install: `brew install --cask MBFrosty/tap/macjobs` (signed and notarized).
-- `doctor` exits 1 when it has findings (any `fail` item), 0 otherwise. `logs --json` is NDJSON: one object per line, not one document. `list --kind` only accepts launchd/system/brew/tailscale/process and exits 1 otherwise. A foreign-job `--dry-run` of stop/restart/disable/edit/remove includes a `note` that the real run needs `--yes` plus typed TTY confirmation.
+- `doctor` exits 1 when it has findings (any `fail` item), 0 otherwise. `logs --json` is NDJSON: one object per line, not one document. `list --kind` only accepts launchd/system/brew/tailscale/process/cron and exits 1 otherwise. A foreign-job `--dry-run` of stop/restart/disable/edit/remove includes a `note` that the real run needs `--yes` plus typed TTY confirmation.
 - Read-only first: `list`, `show`, `logs`, `ports`, and `doctor` are safe inspection commands. `doctor` reports and never fixes.
 - Before `create`, `edit`, `enable`, `disable`, `start`, `stop`, `restart`, `remove`, `adopt`, `tag`, or `untag`, run with `--dry-run`, show the plan, and obtain approval for the real operation. Never remove without explicit confirmation. Existing explicit approval for the same operation remains valid.
 - Foreign jobs require `--yes` and a typed TTY label confirmation for stop, restart, disable, edit, and remove. Never bypass this; ask the user to perform the confirmation. Start and enable do not have that tool gate, but still need the preview/approval workflow.
-- System jobs, Apple jobs, Tailscale routes, and selected processes are protected from lifecycle changes. Tags are metadata only for all five kinds; Apple jobs cannot be tagged. Tags never grant management or creation provenance.
+- System jobs, Apple jobs, Tailscale routes, selected processes, and cron entries are protected from lifecycle changes. Tags are metadata only for all six kinds; Apple jobs cannot be tagged. Tags never grant management or creation provenance.
 - Prefer `--json` (schemaVersion 1) for parsing; use tables for people. Logs are redacted, but never paste secrets into chat.
 - Times ending in `Z` are UTC; convert to the user's zone. LAST RUN is inferred from log mtime; an old value can mean nothing was logged.
 - `registry init` and `watchdog check` have no dry-run. Registry initialization writes metadata; get approval before bootstrap or replacement. Watchdog checks can reopen apps and write log/state files; do not treat them as read-only inspection.
@@ -26,6 +26,7 @@ Portable operator guidance for assistants lives in `skills/macjobs-bot/SKILL.md`
 ```sh
 macjobs list
 macjobs list --all
+macjobs list --kind cron --json
 macjobs list --kind launchd --owner team --unhealthy
 macjobs list --tag homelab
 macjobs list --tag a,b
@@ -48,13 +49,23 @@ macjobs create calendar --name example-weekly --at 'Sun 03:00' --dry-run -- /bin
 macjobs create app-watchdog --name example-watchdog --app 'Example App' --every 10m --dry-run
 ```
 
-Remove `--dry-run` only after approval. Use exact IDs from `list`: labels for launchd, `system:<label>` for system, `homebrew.mxcl.<service>` for Homebrew, route IDs beginning `tailscale:` for routes, and registered IDs for process matches. Homebrew services may appear as launchd items when deduplicated.
+Remove `--dry-run` only after approval. Use exact IDs from `list`: labels for launchd, `system:<label>` for system, `homebrew.mxcl.<service>` for Homebrew, route IDs beginning `tailscale:` for routes, registered IDs for process matches, and `cron:user:<hash8>` / `cron:system:<hash8>`. Homebrew services may appear as launchd items when deduplicated.
 
 Tags normalize to lowercase, match `^[a-z0-9][a-z0-9._-]{0,31}$`, and are sorted and deduplicated. Tag/untag take separate positional tags. The `--tag` flag on list/create/adopt accepts repeated flags and comma lists. List matches ANY requested tag, ANDed with kind, owner, port, and unhealthy. `--port` accepts repeated flags or comma lists and matches ANY observed or expected port, including Tailscale front and backend ports. Untagging a missing tag is an unchanged success. Tag creates an unmanaged metadata stub if needed; untag does not create an absent entry. Create refuses existing IDs; adopt merges tags and preserves existing metadata/provenance unless explicitly changed. Empty tags are omitted from YAML/JSON and shown as `-` in the table.
 
 `ports` lists visible TCP listeners and unconnected UDP sockets with job attribution (direct PID or process-tree ancestor). `--unattributed` keeps listeners with no known job. The PORTS column follows PID: observed ports (`8080`, `5353/udp`), missing expected ports prefixed `!`, at most four values then `+N`, or `-`. Unattributed listeners are not new list items.
 
 For a watchdog, select actual fresh app-level evidence before configuring `--probe-log`, `--probe-http`, regexes, or `--tcp-peer`. TCP alone cannot establish a fresh connection. `--restart-on-disconnect` is opt-in and only acts after confirmed `connected=no`; leave it off unless requested. `macjobs watchdog check --app 'Example App' --log ~/Library/Logs/example-watchdog.log` runs one check, including possible reopen and state/log writes.
+
+## Cron (read-only)
+
+`list --kind cron`, `show <cron id>`, and `doctor` include user `crontab -l` and readable `/etc/crontab`. IDs hash normalized schedule + NUL + original command; comments/reordering preserve IDs, duplicates gain `-2`, `-3`, and command edits change IDs and can leave absent registry entries. Use exact IDs from list. State `scheduled` only means listed, not proof of execution. System entries include `runAs`.
+
+Lifecycle commands refuse cron with "cron items are read-only in macjobs", including `--dry-run` and `--yes`; `create cron` and adoption are refused. Never edit, remove, or install a crontab through another tool. Tag/untag remain local registry metadata only and follow the normal preview/approval workflow.
+
+Show adds `entry: {schedule, command, env}` with env keys/redacted values and `plist: null`. Additive item fields `command`, `source`, `line`, `runAs` retain schemaVersion 1. Env assignments (including inline prefixes and short values) and recognized command credentials stay private. Malformed entries never show raw text. Missing literal absolute executables warn (fail if managed); malformed lines and `%` semantics warn. Relative programs are not resolved through PATH. Doctor still exits 1 only for fail.
+
+Check warnings for unavailable crontabs, including possible Full Disk Access restrictions under launchd. Missing/empty crontabs are normal. Stderr is suppressed: exit 1 with empty stdout is treated as no crontab, so identical permission-denial output is ambiguous. Never use sudo or read the spool. Login items, next-run calculation, and cron run history are outside scope.
 
 ## Reading results
 
@@ -70,7 +81,7 @@ For a watchdog, select actual fresh app-level evidence before configuring `--pro
 
 ## Command and flag reference
 
-Refreshed from the candidate binary's root and every subcommand's `--help`, built in a temporary directory. Refresh from the installed binary for operator use; use a temporary candidate binary for uninstalled CLI changes and explicitly record that distinction. Never install as a side effect of refreshing documentation.
+Checked the installed binary help and refreshed from the candidate binary's root and every subcommand's `--help`, built in a temporary directory. The installed binary predates cron; the candidate adds cron list/show guidance without new flags. Refresh from the installed binary after upgrading for operator use; use a temporary candidate binary for uninstalled CLI changes and explicitly record that distinction. Never install as a side effect of refreshing documentation.
 
 Global flags: `--all`, `--json`, `--registry <file>`, `-h/--help`. Root also supports `-v/--version`. Optional `mj` is a shell alias (`alias mj=macjobs`) or a symlink to the same executable, not a CLI alias. Root `--help` does not list an `mj` alias.
 
@@ -117,7 +128,7 @@ The README's optional `mj` symlink (or a shell alias) points to the installed ma
 
 Default path: `~/.config/macjobs/registry.yaml`, overridable by `--registry`. `schemaVersion: 1`; `label_prefix` defaults to `local.macjobs.` and must match `^[A-Za-z0-9][A-Za-z0-9.-]*\.$`. Entries have:
 
-- `id`: nonempty, unique. `kind`: omitted/default launchd, or launchd/system/brew/tailscale/process.
+- `id`: nonempty, unique. `kind`: omitted/default launchd, or launchd/system/brew/tailscale/process/cron.
 - `owner`: free-form; empty/omitted displays as unknown. `purpose`: optional description.
 - `managed`, `created_by_tool`: booleans; tags never change them. Optional `created_by`, `template`, `adopted_at` record provenance/adoption.
 - `tags`: optional list of lowercase tokens matching `^[a-z0-9][a-z0-9._-]{0,31}$`. CLI input lowercases; registry YAML must already use lowercase valid tokens. Load/save deduplicate and sort without changing the caller's slices.

@@ -5,7 +5,7 @@ description: Use when a user asks about, inspects, troubleshoots, or wants to ch
 
 # macjobs (operator)
 
-macjobs is a macOS CLI that inventories launchd user agents, system daemons (read-only), Homebrew services, Tailscale serve/funnel routes, registry-selected processes, and listening ports. Prefer it over ad hoc `launchctl`, `brew services`, or `lsof` when you need one consistent view, redacted output, and safe lifecycle previews.
+macjobs is a macOS CLI that inventories launchd user agents, system daemons (read-only), Homebrew services, Tailscale serve/funnel routes, registry-selected processes, listening ports, and read-only cron. Prefer it over ad hoc `launchctl`, `brew services`, or `lsof` when you need one consistent view, redacted output, and safe lifecycle previews.
 
 ## Check installation
 
@@ -24,7 +24,7 @@ Optional `mj` is a shell alias (`alias mj=macjobs` in `~/.zshrc`) or a symlink t
 - **Ports**: which TCP listeners and UDP sockets exist and which job owns them.
 - **Controlled changes**: start/stop/restart, enable/disable, edit plists, create from templates, adopt, tag/untag, remove — always preview first.
 
-Tailscale routes and registry-matched processes are display-only for lifecycle. Never use `sudo`.
+Tailscale routes, cron entries, and registry-matched processes are display-only for lifecycle. Never use `sudo`.
 
 ## Safe read-only commands
 
@@ -33,6 +33,7 @@ Run these freely; they do not mutate jobs or registry files.
 ```sh
 macjobs list
 macjobs list --all
+macjobs list --kind cron --json
 macjobs list --kind launchd --owner team --unhealthy
 macjobs list --tag homelab
 macjobs list --tag a,b --json
@@ -46,21 +47,31 @@ macjobs logs com.example.worker -f
 macjobs doctor --json
 ```
 
-**list** filters: `--kind` (launchd, system, brew, tailscale, process), `--owner`, `--tag` (repeat or comma list; ANY tag matches, ANDed with other filters), `--port` (repeat or comma list; ANY observed or expected port), `--unhealthy`, plus global `--all` and `--json`.
+**list** filters: `--kind` (launchd, system, brew, tailscale, process, cron), `--owner`, `--tag` (repeat or comma list; ANY tag matches, ANDed with other filters), `--port` (repeat or comma list; ANY observed or expected port), `--unhealthy`, plus global `--all` and `--json`.
 
 **ports** lists visible TCP listeners and unconnected UDP sockets with job attribution. `--unattributed` keeps only listeners with no known job.
 
-**show** returns live state and a redacted plist. `--show-env` is deprecated and never reveals values.
+**show** returns state and a redacted plist or cron entry. `--show-env` is deprecated and never reveals values.
 
 **logs** uses `-n/--lines` (default 50) and `-f/--follow`.
 
-- `doctor` exits 1 when it has findings (any `fail` item), 0 otherwise. `logs --json` is NDJSON: one object per line, not one document. `list --kind` only accepts launchd/system/brew/tailscale/process and exits 1 otherwise. A foreign-job `--dry-run` of stop/restart/disable/edit/remove includes a `note` that the real run needs `--yes` plus typed TTY confirmation.
+- `doctor` exits 1 when it has findings (any `fail` item), 0 otherwise. `logs --json` is NDJSON: one object per line, not one document. `list --kind` only accepts launchd/system/brew/tailscale/process/cron and exits 1 otherwise. A foreign-job `--dry-run` of stop/restart/disable/edit/remove includes a `note` that the real run needs `--yes` plus typed TTY confirmation.
 
 **doctor** reports only; it never fixes. It exits 1 when any item has `fail` health, 0 otherwise (warnings and unknown still print).
 
 Global flags on most commands: `--json`, `--registry <file>` (default `~/.config/macjobs/registry.yaml`), `--all` (include Apple jobs on list-style inventory).
 
-Use exact IDs from `list`: launchd labels, `system:<label>`, `homebrew.mxcl.<service>`, `tailscale:…` route IDs, and registered process IDs.
+Use exact IDs from `list`: launchd labels, `system:<label>`, `homebrew.mxcl.<service>`, `tailscale:…` route IDs, registered process IDs, and `cron:user:<hash8>` / `cron:system:<hash8>`.
+
+## Cron (read-only)
+
+`list --kind cron`, `show <cron id>`, and `doctor` include user `crontab -l` and readable `/etc/crontab`. IDs hash normalized schedule + NUL + original command; comments/reordering preserve IDs, duplicates gain `-2`, `-3`, and command edits change IDs and can leave absent registry entries. Use exact IDs from list. State `scheduled` only means listed, not proof of execution. System entries include `runAs`.
+
+Lifecycle commands refuse cron with "cron items are read-only in macjobs", including `--dry-run` and `--yes`; `create cron` and adoption are refused. Never edit, remove, or install a crontab through another tool. Tag/untag remain local registry metadata only and follow the normal preview/approval workflow.
+
+Show adds `entry: {schedule, command, env}` with env keys/redacted values and `plist: null`. Additive item fields `command`, `source`, `line`, `runAs` retain schemaVersion 1. Env assignments (including inline prefixes and short values) and recognized command credentials stay private. Malformed entries never show raw text. Missing literal absolute executables warn (fail if managed); malformed lines and `%` semantics warn. Relative programs are not resolved through PATH. Doctor still exits 1 only for fail.
+
+Check warnings for unavailable crontabs, including possible Full Disk Access restrictions under launchd. Missing/empty crontabs are normal. Stderr is suppressed: exit 1 with empty stdout is treated as no crontab, so identical permission-denial output is ambiguous. Never use sudo or read the spool. Login items, next-run calculation, and cron run history are outside scope.
 
 ## Making changes
 
@@ -128,3 +139,7 @@ When you finish an inspection or change:
 3. Call out **warnings** from collectors (Homebrew/Tailscale/lsof unavailable, partial visibility).
 4. For changes, show whether the result was **planned/completed/refused/failed** and any safe error `code`/`message` from JSON.
 5. Propose next steps; do not run further lifecycle commands without approval.
+
+## Help reference refresh
+
+Checked against root and every subcommand's `--help` from the installed binary and a temporary candidate build for this change. The installed binary predates cron; the candidate adds cron to `list --kind` and cron metadata to show help, with no new flags or subcommands. Refresh from installed help after upgrading; do not install a candidate as a documentation side effect.

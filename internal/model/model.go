@@ -4,7 +4,21 @@ import "time"
 
 const SchemaVersion = 1
 
+type CronEntry struct {
+	Schedule string            `json:"schedule"`
+	Command  string            `json:"command"`
+	Env      map[string]string `json:"env"`
+}
+
 type Item struct {
+	Command         string         `json:"command,omitempty"`
+	Source          string         `json:"source,omitempty"`
+	Line            int            `json:"line,omitempty"`
+	RunAs           string         `json:"runAs,omitempty"`
+	CronEntry       *CronEntry     `json:"-"`
+	CronProgram     string         `json:"-"`
+	CronMalformed   bool           `json:"-"`
+	CronPercent     bool           `json:"-"`
 	Tags            []string       `json:"tags,omitempty"`
 	BrewName        string         `json:"-"`
 	ID              string         `json:"id"`
