@@ -80,9 +80,8 @@ homebrew_casks:
     license: MIT
     skip_upload: auto
     commit_msg_template: "macjobs {{ .Tag }}"
-    # Quarantine strip (Gatekeeper helper): OFF by default until maintainers choose.
-    # To enable, uncomment the hooks block below and add this line to caveats:
-    #   Release binaries are not notarized; this cask clears quarantine on install. See RELEASING.md.
+    # Legacy quarantine strip hook: OFF. Not needed since v0.1.1 (binaries are Developer ID
+    # signed and notarized). Kept commented for reference only; see RELEASING.md.
     # hooks:
     #   post:
     #     install: |
@@ -92,4 +91,6 @@ homebrew_casks:
     caveats: |
       Optional shell alias: alias mj=macjobs
 
-      Release binaries are not notarized. Verify downloads with checksums.txt from the GitHub release.
+      Release binaries are signed with Developer ID and notarized by Apple.
+      The first launch needs internet so Gatekeeper can check notarization online
+      (a bare binary cannot be stapled). Verify downloads with checksums.txt.

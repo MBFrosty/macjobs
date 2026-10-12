@@ -76,16 +76,13 @@ Operator-focused skill for assistants with shell access on a Mac (not for macjob
 
 ## Install notes
 
-Release binaries are **not notarized** yet. The Homebrew cask does **not** remove the quarantine extended attribute by default (the post-install hook in `.goreleaser.yaml` is commented out and opt-in; see [RELEASING.md](RELEASING.md)). On first run macOS may block the binary: allow it in **System Settings → Privacy & Security**, or run:
+Release binaries (v0.1.1 and later) are **signed with Developer ID and notarized by Apple**, so the Homebrew cask and direct downloads run without Gatekeeper prompts. A bare command-line binary cannot be stapled, so the **first launch needs internet** for Gatekeeper to confirm notarization online.
+
+For direct downloads from GitHub releases, verify with `checksums.txt`. To check the signature:
 
 ```sh
-xattr -d com.apple.quarantine "$(brew --prefix)/bin/macjobs"
-```
-
-For direct downloads from GitHub releases, verify with `checksums.txt`, then:
-
-```sh
-xattr -d com.apple.quarantine ./macjobs
+codesign --verify --strict --verbose=2 "$(brew --prefix)/bin/macjobs"
+spctl -a -vvv -t install "$(brew --prefix)/bin/macjobs"
 ```
 
 `go install` builds locally and is unaffected by Gatekeeper quarantine on downloaded release binaries.

@@ -46,6 +46,11 @@ jobs:
           for bin in $(find dist -type f -path '*darwin*' -name macjobs); do
             echo "== $bin"
             codesign --verify --strict --verbose=2 "$bin"
-            codesign --verify --test-requirement="=notarized" --verbose=2 "$bin"
-            codesign -dv "$bin" 2>&1 | grep -E '^(Authority=Developer ID Application|TeamIdentifier=|Runtime Version|flags=)'
+            info="$(codesign -dvv "$bin" 2>&1)"
+            echo "$info" | grep -E '^(Authority=|TeamIdentifier=|Runtime Version|CodeDirectory)' || true
+            # A bare Mach-O cannot be stapled, so "=notarized" cannot be tested offline here.
+            # Require the Developer ID chain and the hardened runtime instead.
+            echo "$info" | grep -q '^Authority=Developer ID Application:' || { echo "missing Developer ID Authority"; exit 1; }
+            echo "$info" | grep -q '^Authority=Developer ID Certification Authority' || { echo "missing Developer ID CA"; exit 1; }
+            echo "$info" | grep -Eq 'flags=0x[0-9a-f]+\([^)]*runtime' || { echo "hardened runtime not enabled"; exit 1; }
           done

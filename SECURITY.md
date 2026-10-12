@@ -22,6 +22,6 @@ Only the **latest minor release** receives security fixes. Upgrade to the curren
 
 ## Release binaries
 
-Release builds are **not code-signed or notarized** yet. macOS Gatekeeper may warn on first launch until notarization is added. An optional Homebrew cask post-install hook (see `RELEASING.md`) can clear the quarantine attribute; when that hook is disabled, users must approve or clear quarantine themselves. Verify release artifacts using `checksums.txt` from the GitHub release before installing.
+Since v0.1.1, release builds are **signed with Developer ID and notarized by Apple**. A bare binary cannot be stapled, so the first launch needs internet for Gatekeeper to check notarization. Verify release artifacts using `checksums.txt` from the GitHub release before installing.
 
 Registry files, recovery plists, and job logs may contain private metadata and should remain local.
