@@ -8,7 +8,7 @@
 
 ## Quickstart
 
-Install with Homebrew (tap must exist before the first public release):
+Install with Homebrew:
 
 ```sh
 brew install --cask MBFrosty/tap/macjobs
