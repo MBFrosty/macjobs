@@ -1,4 +1,10 @@
-# macjobs
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/macjobs-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/macjobs-logo-light.svg">
+    <img src="docs/assets/macjobs-logo-light.svg" alt="macjobs — One inventory. Safe by default. Built for agents." width="800">
+  </picture>
+</h1>
 
 **macjobs: the bot- and agent-first job manager for Mac.** One inventory across launchd, Homebrew services, Tailscale Serve/Funnel, processes, and read-only cron, readable and safely operable by AI agents.
 
