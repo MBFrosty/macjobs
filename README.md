@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/macjobs-logo-dark.svg">
     <source media="(prefers-color-scheme: light)" srcset="docs/assets/macjobs-logo-light.svg">
-    <img src="docs/assets/macjobs-logo-light.svg" alt="macjobs — One inventory. Safe by default. Built for agents." width="800">
+    <img src="docs/assets/macjobs-logo-light.svg" alt="macjobs — One inventory. Built for agents." width="800">
   </picture>
 </h1>
 
