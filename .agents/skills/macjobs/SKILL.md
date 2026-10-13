@@ -17,7 +17,7 @@ Portable operator guidance for assistants lives in `skills/macjobs-bot/SKILL.md`
 - Before `create`, `edit`, `enable`, `disable`, `start`, `stop`, `restart`, `remove`, `adopt`, `tag`, or `untag`, run with `--dry-run`, show the plan, and obtain approval for the real operation. Never remove without explicit confirmation. Existing explicit approval for the same operation remains valid.
 - Foreign jobs require `--yes` and a typed TTY label confirmation for stop, restart, disable, edit, and remove. Never bypass this; ask the user to perform the confirmation. Start and enable do not have that tool gate, but still need the preview/approval workflow.
 - System jobs, Apple jobs, Tailscale routes, selected processes, and cron entries are protected from lifecycle changes. Tags are metadata only for all six kinds; Apple jobs cannot be tagged. Tags never grant management or creation provenance.
-- Prefer `--json` (schemaVersion 1) for parsing; use tables for people. Logs are redacted, but never paste secrets into chat.
+- Prefer `--json` (schemaVersion 1) for parsing; use tables for people. TTY `list`/`doctor` color and the `show` header apply only when stdout is a TTY, `NO_COLOR` is unset, and `--no-color` is not passed. Piped tables and `--json` stay unchanged. Logs are redacted, but never paste secrets into chat.
 - Times ending in `Z` are UTC; convert to the user's zone. LAST RUN is inferred from log mtime; an old value can mean nothing was logged.
 - `registry init` and `watchdog check` have no dry-run. Registry initialization writes metadata; get approval before bootstrap or replacement. Watchdog checks can reopen apps and write log/state files; do not treat them as read-only inspection.
 
@@ -81,9 +81,9 @@ Check warnings for unavailable crontabs, including possible Full Disk Access res
 
 ## Command and flag reference
 
-Checked the installed binary help and refreshed from the candidate binary's root and every subcommand's `--help`, built in a temporary directory. The installed binary predates cron; the candidate adds cron list/show guidance without new flags. Refresh from the installed binary after upgrading for operator use; use a temporary candidate binary for uninstalled CLI changes and explicitly record that distinction. Never install as a side effect of refreshing documentation.
+Checked the installed binary help and refreshed from the candidate binary's root and every subcommand's `--help`, built in a temporary directory. The candidate adds `--no-color`. Refresh from the installed binary after upgrading for operator use; use a temporary candidate binary for uninstalled CLI changes and explicitly record that distinction. Never install as a side effect of refreshing documentation.
 
-Global flags: `--all`, `--json`, `--registry <file>`, `-h/--help`. Root also supports `-v/--version`. Optional `mj` is a shell alias (`alias mj=macjobs`) or a symlink to the same executable, not a CLI alias. Root `--help` does not list an `mj` alias.
+Global flags: `--all`, `--json`, `--no-color`, `--registry <file>`, `-h/--help`. Root also supports `-v/--version`. Optional `mj` is a shell alias (`alias mj=macjobs`) or a symlink to the same executable, not a CLI alias. Root `--help` does not list an `mj` alias.
 
 - `list`: `--kind`, `--owner`, `--tag`, `--port`, `--unhealthy`.
 - `ports`: `--unattributed`. Table columns are PROTO PORT HOST PID COMMAND JOB VIA FINDINGS.

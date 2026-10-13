@@ -208,6 +208,10 @@ The PORTS column follows PID. Observed ports are comma-joined (`8080`, `5353/udp
 
 A non-root `lsof` on macOS sees only the current user's processes. Root-owned listeners, launchd-held sockets, and Tailscale front ports are often invisible. macjobs never uses sudo. Collector command failures become warnings; missing visibility is `unknown`, never `fail`. Environment-derived ports are skipped because redaction can mask port numbers that also appear as environment values.
 
+## Human output
+
+On a TTY, `list` and `doctor` print a colored table (kind-colored labels, a status dot before each ID, pill tags, and health as a colored dot plus a word). `show` adds a one-line header before the JSON detail. Piped output keeps the original columns. `--json` is unchanged (`schemaVersion` 1). Color is skipped when stdout is not a TTY, `NO_COLOR` is set, or `--no-color` is passed.
+
 ## JSON contract
 
 `list --json` and `doctor --json` return `{ "schemaVersion": 1, "items": [], "warnings": [] }`. `ports --json` returns `{ "schemaVersion": 1, "listeners": [], "warnings": [] }`. `show` returns `{ "schemaVersion": 1, "item": {}, "plist": {}, "warnings": [] }`; `plist` is an empty object when unavailable for existing kinds; cron uses `plist: null` and adds `entry: {schedule, command, env}`. `registry init --json` returns the registry document. `logs --json` emits newline-delimited JSON records with `schemaVersion`, `id`, `path`, and `line`, one record per log line (NDJSON, not a single JSON document). Follow mode keeps the same record shape.

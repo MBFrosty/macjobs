@@ -29,11 +29,12 @@ func NewWithActions(version string, collect Collect, factory ActionFactory) *cob
 	return NewWithServices(version, collect, factory, DefaultWatchdog)
 }
 func NewWithServices(version string, collect Collect, factory ActionFactory, watchdogFactory WatchdogFactory) *cobra.Command {
-	var jsonOut, all bool
+	var jsonOut, all, noColor bool
 	var path string
 	root := &cobra.Command{Use: "macjobs", Short: "Inspect and manage macOS user background jobs", Version: version, SilenceUsage: true, SilenceErrors: true}
 	root.PersistentFlags().BoolVar(&jsonOut, "json", false, "Output schemaVersion 1 JSON")
 	root.PersistentFlags().BoolVar(&all, "all", false, "Include Apple jobs")
+	root.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colored TTY output")
 	root.PersistentFlags().StringVar(&path, "registry", "", "Registry file (default: ~/.config/macjobs/registry.yaml)")
 	resolve := func() (string, error) {
 		if path != "" {
@@ -76,7 +77,9 @@ func NewWithServices(version string, collect Collect, factory ActionFactory, wat
 		if jsonOut {
 			return write(cmd, report, result.Redactor)
 		}
-		return Table(cmd.OutOrStdout(), report, result.Redactor)
+		out := cmd.OutOrStdout()
+		tty, color := stdoutMode(out, noColor)
+		return writeHuman(out, report, result.Redactor, tty, color, false)
 	}}
 	list.Flags().StringVar(&kind, "kind", "", "Filter: launchd, system, brew, tailscale, process, cron")
 	list.Flags().StringVar(&owner, "owner", "", "Filter by registry owner")
@@ -131,6 +134,13 @@ func NewWithServices(version string, collect Collect, factory ActionFactory, wat
 		if item.Kind == "cron" {
 			payload.Plist = nil
 		}
+		out := cmd.OutOrStdout()
+		tty, color := stdoutMode(out, noColor)
+		if !jsonOut && tty {
+			if e := writeShowHeader(out, item, r, color); e != nil {
+				return e
+			}
+		}
 		// JSON is also the human-readable detail format.
 		return write(cmd, payload, r)
 	}}
@@ -144,7 +154,9 @@ func NewWithServices(version string, collect Collect, factory ActionFactory, wat
 		if jsonOut {
 			e = write(cmd, result.Report, result.Redactor)
 		} else {
-			e = Table(cmd.OutOrStdout(), result.Report, result.Redactor)
+			out := cmd.OutOrStdout()
+			tty, color := stdoutMode(out, noColor)
+			e = writeHuman(out, result.Report, result.Redactor, tty, color, true)
 		}
 		if e != nil {
 			return e
@@ -328,7 +340,7 @@ func Table(w io.Writer, r model.Report, red redact.Redactor) error {
 		}
 		values := []string{i.ID, i.Kind, i.Owner, tagText, i.State, fmt.Sprint(i.PID), FormatPorts(i.Ports), i.Schedule, last, exit, i.Health, note}
 		for j, v := range values {
-			values[j] = strings.NewReplacer("\t", " ", "\n", " ", "\r", " ").Replace(red.Text(v))
+			values[j] = plainCell(v, red)
 		}
 		if _, e := fmt.Fprintln(tw, strings.Join(values, "\t")); e != nil {
 			return e

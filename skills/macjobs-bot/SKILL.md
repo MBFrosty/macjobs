@@ -47,7 +47,7 @@ macjobs logs com.example.worker -f
 macjobs doctor --json
 ```
 
-**list** filters: `--kind` (launchd, system, brew, tailscale, process, cron), `--owner`, `--tag` (repeat or comma list; ANY tag matches, ANDed with other filters), `--port` (repeat or comma list; ANY observed or expected port), `--unhealthy`, plus global `--all` and `--json`.
+**list** filters: `--kind` (launchd, system, brew, tailscale, process, cron), `--owner`, `--tag` (repeat or comma list; ANY tag matches, ANDed with other filters), `--port` (repeat or comma list; ANY observed or expected port), `--unhealthy`, plus global `--all`, `--json`, and `--no-color`.
 
 **ports** lists visible TCP listeners and unconnected UDP sockets with job attribution. `--unattributed` keeps only listeners with no known job.
 
@@ -59,7 +59,7 @@ macjobs doctor --json
 
 **doctor** reports only; it never fixes. It exits 1 when any item has `fail` health, 0 otherwise (warnings and unknown still print).
 
-Global flags on most commands: `--json`, `--registry <file>` (default `~/.config/macjobs/registry.yaml`), `--all` (include Apple jobs on list-style inventory).
+Global flags on most commands: `--json`, `--no-color`, `--registry <file>` (default `~/.config/macjobs/registry.yaml`), `--all` (include Apple jobs on list-style inventory). Color on TTY `list`/`doctor` (and the `show` header) only when stdout is a TTY, `NO_COLOR` is unset, and `--no-color` is not passed. Piped tables and `--json` (`schemaVersion` 1) stay unchanged.
 
 Use exact IDs from `list`: launchd labels, `system:<label>`, `homebrew.mxcl.<service>`, `tailscale:…` route IDs, registered process IDs, and `cron:user:<hash8>` / `cron:system:<hash8>`.
 
