@@ -93,15 +93,15 @@ func NewWithServices(version string, collect Collect, factory ActionFactory, wat
 		if e != nil {
 			return e
 		}
-		listeners := result.Listeners
-		if unattributed {
-			filtered := []model.Listener{}
-			for _, l := range listeners {
-				if l.JobID == "" {
-					filtered = append(filtered, l)
-				}
+		listeners := []model.Listener{}
+		for _, l := range result.Listeners {
+			if l.Apple && (!all || unattributed) {
+				continue
 			}
-			listeners = filtered
+			if unattributed && l.JobID != "" {
+				continue
+			}
+			listeners = append(listeners, l)
 		}
 		if jsonOut {
 			return write(cmd, portsReport{SchemaVersion: model.SchemaVersion, Listeners: listeners, Warnings: result.Report.Warnings}, result.Redactor)

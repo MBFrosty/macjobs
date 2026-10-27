@@ -53,7 +53,7 @@ Remove `--dry-run` only after approval. Use exact IDs from `list`: labels for la
 
 Tags normalize to lowercase, match `^[a-z0-9][a-z0-9._-]{0,31}$`, and are sorted and deduplicated. Tag/untag take separate positional tags. The `--tag` flag on list/create/adopt accepts repeated flags and comma lists. List matches ANY requested tag, ANDed with kind, owner, port, and unhealthy. `--port` accepts repeated flags or comma lists and matches ANY observed or expected port, including Tailscale front and backend ports. Untagging a missing tag is an unchanged success. Tag creates an unmanaged metadata stub if needed; untag does not create an absent entry. Create refuses existing IDs; adopt merges tags and preserves existing metadata/provenance unless explicitly changed. Empty tags are omitted from YAML/JSON and shown as `-` in the table.
 
-`ports` lists visible TCP listeners and unconnected UDP sockets with job attribution (direct PID or process-tree ancestor). `--unattributed` keeps listeners with no known job. The PORTS column follows PID: observed ports (`8080`, `5353/udp`), missing expected ports prefixed `!`, at most four values then `+N`, or `-`. Unattributed listeners are not new list items.
+`ports` lists visible TCP listeners and unconnected UDP sockets with job attribution (direct PID or process-tree ancestor). `--unattributed` keeps non-Apple listeners with no known job, including when combined with `--all`. The PORTS column follows PID: observed ports (`8080`, `5353/udp`), missing expected ports prefixed `!`, at most four values then `+N`, or `-`. Unattributed listeners are not new list items.
 
 For a watchdog, select actual fresh app-level evidence before configuring `--probe-log`, `--probe-http`, regexes, or `--tcp-peer`. TCP alone cannot establish a fresh connection. `--restart-on-disconnect` is opt-in and only acts after confirmed `connected=no`; leave it off unless requested. `macjobs watchdog check --app 'Example App' --log ~/Library/Logs/example-watchdog.log` runs one check, including possible reopen and state/log writes.
 
@@ -158,3 +158,9 @@ All JSON uses `schemaVersion: 1`. Additive optional fields such as `tags` retain
 - registry init: registry document. logs: one JSON record per line, with schemaVersion/id/path/line.
 - Actions: schemaVersion/action/id/label/kind/dryRun/ops/result/error; create adds redacted plist XML. Tag/create/adopt previews include nonempty resulting `tags`. Ops describe plans, not proof of completion. `registry-tag`/`registry-untag` are Go metadata operations, never shell commands.
 - Results: planned/completed/unchanged/refused/failed. Error objects have stable code and safe message; failed/refused operations exit nonzero. JSON remains one document except log streaming; confirmation prompts go to stderr.
+
+## Apple listener classification
+
+`ports` hides Apple-owned listeners by default; `--all` includes them marked `Apple`. JSON uses the same filters and adds optional `apple: true` without changing schemaVersion 1 (absent means false). Apple listeners never contribute to the doctor's no-known-job warning, including with `--all`, but still participate in expected-port conflict checks.
+
+Ownership uses the first executable text mapping from a read-only `lsof` query for visible listening PIDs. Cleaned paths under `/System/` (including Cryptexes), `/usr/libexec/`, `/usr/sbin/`, and `/Library/Apple/` count as Apple; an attributed `com.apple.*` job also counts. This location heuristic does not verify signatures. Missing mappings and process names alone do not establish ownership. Unowned apps under `/Applications/` remain unattributed. No additional flags were introduced; help was checked against the installed binary and a temporary candidate build without installing it.

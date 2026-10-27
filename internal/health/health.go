@@ -102,6 +102,8 @@ func PortConflicts(items []model.Item, p procs.Snapshot, listeners []model.Liste
 				}
 				if l.JobID != "" {
 					add(&items[i], "warn", fmt.Sprintf("port %s held by %s", FormatPort(b.Proto, b.Port), l.JobID))
+				} else if l.Apple {
+					add(&items[i], "warn", fmt.Sprintf("port %s held by Apple pid %d", FormatPort(b.Proto, b.Port), l.PID))
 				} else if l.PID > 0 {
 					add(&items[i], "warn", fmt.Sprintf("port %s held by unattributed pid %d", FormatPort(b.Proto, b.Port), l.PID))
 				}
@@ -127,7 +129,7 @@ func PortConflicts(items []model.Item, p procs.Snapshot, listeners []model.Liste
 	}
 	n := 0
 	for _, l := range listeners {
-		if l.JobID == "" {
+		if l.JobID == "" && !l.Apple {
 			n++
 		}
 	}

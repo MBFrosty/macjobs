@@ -41,6 +41,18 @@ func Allowed(name string, args []string) bool {
 	case "tailscale", "Tailscale":
 		return a == "serve status --json" || a == "serve get-config --all"
 	case "lsof":
+		if len(args) == 7 && args[0] == "-nP" && args[1] == "-a" && args[2] == "-p" && args[4] == "-d" && args[5] == "txt" && args[6] == "-Fpn" {
+			ids := strings.Split(args[3], ",")
+			if len(ids) > 64 {
+				return false
+			}
+			for _, id := range ids {
+				if !positive(id) {
+					return false
+				}
+			}
+			return true
+		}
 		return a == "-nP -iTCP -sTCP:LISTEN" || a == "-nP -iUDP"
 	case "ps":
 		return a == "-axo pid=,comm=" || a == "-axo pid=,ppid=,comm=" || (len(args) == 4 && args[0] == "-o" && args[1] == "ppid=" && args[2] == "-p" && positive(args[3]))

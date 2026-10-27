@@ -331,6 +331,7 @@ func (c *Collector) Collect(ctx context.Context, reg registry.Registry, all bool
 		}
 		attachExpected(item, entry, route)
 	}
+	c.collectExecutables(ctx, &result.Ports)
 	result.Listeners = attributeListeners(items, result.Ports)
 	for _, item := range items {
 		markListening(item, result.Ports)

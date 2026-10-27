@@ -22,6 +22,7 @@ type Node struct {
 type Snapshot struct {
 	Processes                  []Process
 	Listeners                  []Listener
+	Executables                map[int]string
 	Parents                    map[int]int
 	PortsKnown, ProcessesKnown bool
 	TreeKnown                  bool
@@ -174,4 +175,37 @@ func (s Snapshot) Owner(pid int, itemPIDs map[int]string) (string, string) {
 
 func NameMatches(process, wanted string) bool {
 	return process == wanted || filepath.Base(process) == wanted
+}
+
+// ParseExecutables retains only the first text mapping for each PID: the executable,
+// not subsequent shared libraries. Missing evidence must not imply Apple ownership.
+func ParseExecutables(b []byte) map[int]string {
+	out := map[int]string{}
+	pid := 0
+	for _, line := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(line, "p") {
+			pid, _ = strconv.Atoi(line[1:])
+		}
+		if pid > 0 && strings.HasPrefix(line, "n") {
+			if _, seen := out[pid]; !seen {
+				out[pid] = line[1:]
+			}
+		}
+	}
+	return out
+}
+
+// AppleExecutable is a location heuristic, not signature verification. Match
+// directory boundaries after cleaning so lookalike prefixes cannot hide apps.
+func AppleExecutable(path string) bool {
+	if !filepath.IsAbs(path) {
+		return false
+	}
+	path = filepath.Clean(path)
+	for _, root := range []string{"/System/", "/usr/libexec/", "/usr/sbin/", "/Library/Apple/"} {
+		if strings.HasPrefix(path, root) {
+			return true
+		}
+	}
+	return false
 }

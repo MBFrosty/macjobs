@@ -133,3 +133,53 @@ func TestListPortFlagAndPortsCommand(t *testing.T) {
 		t.Fatal(only, err, payload)
 	}
 }
+
+func TestApplePortsFilters(t *testing.T) {
+	for _, all := range []bool{false, true} {
+		for _, unattributed := range []bool{false, true} {
+			for _, jsonOut := range []bool{false, true} {
+				root := New("test", func(context.Context, registry.Registry, bool) (inventory.Result, error) {
+					return inventory.Result{Report: model.NewReport(), Listeners: []model.Listener{
+						{Proto: "tcp", Port: 5000, Command: "AppleService", Apple: true},
+						{Proto: "tcp", Port: 8080, Command: "ThirdParty"},
+						{Proto: "tcp", Port: 9000, Command: "KnownJob", JobID: "com.example.web"},
+					}}, nil
+				})
+				args := []string{"ports", "--registry", filepath.Join(t.TempDir(), "missing.yaml")}
+				if all {
+					args = append(args, "--all")
+				}
+				if unattributed {
+					args = append(args, "--unattributed")
+				}
+				if jsonOut {
+					args = append(args, "--json")
+				}
+				var out bytes.Buffer
+				root.SetOut(&out)
+				root.SetArgs(args)
+				if err := root.Execute(); err != nil {
+					t.Fatal(err)
+				}
+				s := out.String()
+				if strings.Contains(s, "AppleService") != (all && !unattributed) || !strings.Contains(s, "ThirdParty") || strings.Contains(s, "KnownJob") == unattributed {
+					t.Fatal(args, s)
+				}
+				if all && !unattributed {
+					if jsonOut && !strings.Contains(s, `"apple": true`) {
+						t.Fatal(s)
+					}
+					if !jsonOut && !strings.Contains(s, "Apple") {
+						t.Fatal(s)
+					}
+				}
+				if jsonOut {
+					var report portsReport
+					if err := json.Unmarshal(out.Bytes(), &report); err != nil || report.SchemaVersion != 1 {
+						t.Fatal(s, err)
+					}
+				}
+			}
+		}
+	}
+}
