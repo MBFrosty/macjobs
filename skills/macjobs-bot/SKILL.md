@@ -49,7 +49,7 @@ macjobs doctor --json
 
 **list** filters: `--kind` (launchd, system, brew, tailscale, process, cron), `--owner`, `--tag` (repeat or comma list; ANY tag matches, ANDed with other filters), `--port` (repeat or comma list; ANY observed or expected port), `--unhealthy`, plus global `--all`, `--json`, and `--no-color`.
 
-**ports** lists visible TCP listeners and unconnected UDP sockets with job attribution. `--unattributed` keeps only listeners with no known job.
+**ports** lists visible TCP listeners and unconnected UDP sockets with job attribution. `--unattributed` keeps only non-Apple listeners with no known job, including when combined with `--all`.
 
 **show** returns state and a redacted plist or cron entry. `--show-env` is deprecated and never reveals values.
 
@@ -143,3 +143,9 @@ When you finish an inspection or change:
 ## Help reference refresh
 
 Checked against root and every subcommand's `--help` from the installed binary and a temporary candidate build for this change. The installed binary predates cron; the candidate adds cron to `list --kind` and cron metadata to show help, with no new flags or subcommands. Refresh from installed help after upgrading; do not install a candidate as a documentation side effect.
+
+## Apple listener classification
+
+`ports` hides Apple-owned listeners by default; `--all` includes them marked `Apple`. JSON uses the same filters and adds optional `apple: true` without changing schemaVersion 1 (absent means false). Apple listeners never contribute to the doctor's no-known-job warning, including with `--all`, but still participate in expected-port conflict checks.
+
+Ownership uses the first executable text mapping from a read-only `lsof` query for visible listening PIDs. Cleaned paths under `/System/` (including Cryptexes), `/usr/libexec/`, `/usr/sbin/`, and `/Library/Apple/` count as Apple; an attributed `com.apple.*` job also counts. This location heuristic does not verify signatures. Missing mappings and process names alone do not establish ownership. Unowned apps under `/Applications/` remain unattributed. No additional flags were introduced; help was checked against the installed binary and a temporary candidate build without installing it.

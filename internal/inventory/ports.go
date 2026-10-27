@@ -1,7 +1,10 @@
 package inventory
 
 import (
+	"context"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/MBFrosty/macjobs/internal/model"
 	jobplist "github.com/MBFrosty/macjobs/internal/plist"
@@ -69,6 +72,10 @@ func attributeListeners(items map[string]*model.Item, snap procs.Snapshot) []mod
 			}
 		}
 		view := model.Listener{Proto: l.Proto, Host: l.Host, Port: l.Port, PID: l.PID, Command: l.Command, JobID: job, Via: via, ExpectedBy: expectedBy}
+		view.Apple = procs.AppleExecutable(snap.Executables[l.PID])
+		if job != "" && strings.HasPrefix(items[job].Label, "com.apple.") {
+			view.Apple = true
+		}
 		if job != "" {
 			items[job].Ports = appendPort(items[job].Ports, model.PortBinding{Proto: l.Proto, Port: l.Port, Host: l.Host, PID: l.PID, Source: model.PortObserved, Listening: true, Via: via})
 		}
@@ -139,4 +146,34 @@ func listenerHost(snap procs.Snapshot, port int, proto string, pid int) string {
 		}
 	}
 	return ""
+}
+
+// Read executable mappings only for visible listening PIDs, in bounded batches.
+func (c *Collector) collectExecutables(ctx context.Context, snap *procs.Snapshot) {
+	pids := []int{}
+	seen := map[int]bool{}
+	for _, l := range snap.Listeners {
+		if l.PID > 0 && !seen[l.PID] {
+			pids = append(pids, l.PID)
+			seen[l.PID] = true
+		}
+	}
+	sort.Ints(pids)
+	snap.Executables = map[int]string{}
+	for start := 0; start < len(pids); start += 64 {
+		end := start + 64
+		if end > len(pids) {
+			end = len(pids)
+		}
+		ids := []string{}
+		for _, pid := range pids[start:end] {
+			ids = append(ids, strconv.Itoa(pid))
+		}
+		b, _ := c.Runner.Run(ctx, "lsof", "-nP", "-a", "-p", strings.Join(ids, ","), "-d", "txt", "-Fpn")
+		// lsof can return partial output when a selected process exits. Retain only
+		// observed mappings; an absent or unreadable executable stays unclassified.
+		for pid, path := range procs.ParseExecutables(b) {
+			snap.Executables[pid] = path
+		}
+	}
 }

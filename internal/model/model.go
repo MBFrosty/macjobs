@@ -74,6 +74,7 @@ const (
 )
 
 type Listener struct {
+	Apple      bool     `json:"apple,omitempty"`
 	Proto      string   `json:"proto"`
 	Host       string   `json:"host"`
 	Port       int      `json:"port"`

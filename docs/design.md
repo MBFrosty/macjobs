@@ -137,3 +137,9 @@ JSON keeps schemaVersion 1 with optional item `command`, `source`, `line`, `runA
 - Foreign lifecycle operations refuse without confirmation. `--dry-run` makes zero changes, verified by diffing launchctl and plist state before/after.
 - `create` plus `remove` on a throwaway template job round-trips without leftover plist, log, registry entry, or temporary file.
 - No secrets printed. Environment values remain redacted in all output.
+
+### Apple-owned listeners
+
+The collector reads executable text mappings for visible listening PIDs through the Runner, in batches of at most 64. It uses the first text mapping per PID, never shared libraries or `ps` names, to classify cleaned executable paths under `/System/`, `/usr/libexec/`, `/usr/sbin/`, or `/Library/Apple/`. An attributed `com.apple.*` label is also sufficient. Missing mappings fail open for visibility: unknown listeners remain unattributed. This is a location heuristic, not signature verification.
+
+Listener JSON adds optional `apple: true` while retaining schemaVersion 1 and existing attribution fields. Default ports output hides Apple listeners; `--all` includes them marked Apple; `--unattributed` excludes Apple listeners regardless of `--all`. Doctor excludes them from the no-known-job count but retains them for actual expected-port conflicts. An unowned third-party executable in `/Applications/` still counts as unattributed.

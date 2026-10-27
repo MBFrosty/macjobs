@@ -34,6 +34,10 @@ func (r *replay) Run(_ context.Context, name string, args ...string) ([]byte, er
 		return nil, errors.New("unavailable")
 	}
 	b, ok := r.data[k]
+	if !ok && name == "lsof" && strings.HasSuffix(k, " -d txt -Fpn") {
+		// Existing socket fixtures have no executable evidence unless supplied.
+		return nil, nil
+	}
 	if !ok {
 		r.t.Fatalf("unexpected command: %s", k)
 	}

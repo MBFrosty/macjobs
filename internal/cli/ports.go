@@ -63,7 +63,7 @@ func writePorts(w io.Writer, result inventory.Result, unattributed bool, red red
 		return e
 	}
 	for _, l := range result.Listeners {
-		if unattributed && l.JobID != "" {
+		if unattributed && (l.JobID != "" || l.Apple) {
 			continue
 		}
 		job, via := "-", "-"
@@ -74,7 +74,9 @@ func writePorts(w io.Writer, result inventory.Result, unattributed bool, red red
 			via = l.Via
 		}
 		findings := []string{}
-		if l.JobID == "" {
+		if l.Apple {
+			findings = append(findings, "Apple")
+		} else if l.JobID == "" {
 			findings = append(findings, "unattributed")
 		}
 		if len(l.ExpectedBy) > 0 {

@@ -131,3 +131,19 @@ func TestCronAllowlist(t *testing.T) {
 		}
 	}
 }
+
+func TestExecutableQueryAllowlist(t *testing.T) {
+	for _, pids := range []string{"42", "42,73"} {
+		if !Allowed("lsof", []string{"-nP", "-a", "-p", pids, "-d", "txt", "-Fpn"}) {
+			t.Fatal(pids)
+		}
+	}
+	for _, pids := range []string{"", "-1", "0", "all", "42,", "42,-73", "042", "42 -u root"} {
+		if Allowed("lsof", []string{"-nP", "-a", "-p", pids, "-d", "txt", "-Fpn"}) {
+			t.Fatal(pids)
+		}
+	}
+	if Allowed("lsof", []string{"-nP", "-a", "-p", "42", "-d", "cwd", "-Fpn"}) {
+		t.Fatal("non-text mapping allowed")
+	}
+}

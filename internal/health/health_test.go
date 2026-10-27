@@ -160,3 +160,20 @@ func TestHeldByOtherJob(t *testing.T) {
 		t.Fatal(items[0])
 	}
 }
+
+func TestAppleListenersExcludedFromUnattributedCount(t *testing.T) {
+	apple := model.Listener{Proto: "tcp", Port: 5000, PID: 70, Apple: true}
+	thirdParty := model.Listener{Proto: "tcp", Port: 8080, PID: 80}
+	if warnings := PortConflicts(nil, procs.Snapshot{PortsKnown: true}, []model.Listener{apple}); len(warnings) != 0 {
+		t.Fatal(warnings)
+	}
+	warnings := PortConflicts(nil, procs.Snapshot{PortsKnown: true}, []model.Listener{apple, thirdParty})
+	if len(warnings) != 1 || !strings.HasPrefix(warnings[0], "1 listeners have no known job") {
+		t.Fatal(warnings)
+	}
+	items := []model.Item{{ID: "com.example.web", Ports: []model.PortBinding{{Proto: "tcp", Port: 5000, Source: model.PortDeclared}}}}
+	PortConflicts(items, procs.Snapshot{PortsKnown: true}, []model.Listener{apple})
+	if !strings.Contains(strings.Join(items[0].Notes, " "), "held by Apple pid 70") {
+		t.Fatal(items)
+	}
+}
